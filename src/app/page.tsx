@@ -3,6 +3,27 @@
 import { useState, useRef } from "react";
 import srtParser from "srt-parser-2";
 
+interface FilePickerAcceptType {
+  description: string;
+  accept: {
+    [key: string]: string[];
+  };
+}
+
+interface FilePickerOptions {
+  types?: FilePickerAcceptType[];
+  excludeAcceptAllOption?: boolean;
+  multiple?: boolean;
+}
+
+declare global {
+  interface Window {
+    showOpenFilePicker(
+      options?: FilePickerOptions
+    ): Promise<FileSystemFileHandle[]>;
+  }
+}
+
 const OPFS_AUDIO_NAME = "audio.mp3";
 const OPFS_SRT_NAME = "transcript.srt";
 
