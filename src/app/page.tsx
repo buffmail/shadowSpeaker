@@ -16,7 +16,7 @@ const opfsWrite = async (file: File, fileName: string) => {
   await writable.close();
 };
 
-export const opfsRead = async (fileName: string) => {
+const opfsRead = async (fileName: string) => {
   const root = await navigator.storage.getDirectory();
 
   const opfsFileHandle = await root.getFileHandle(fileName);
