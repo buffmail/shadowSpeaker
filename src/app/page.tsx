@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
 
 const LS_INDEX = "lastPlayIndex";
@@ -108,7 +108,12 @@ export default function Home() {
   const sourceNodeRef = useRef<AudioBufferSourceNode | undefined>(undefined);
   const audioBufferRef = useRef<AudioBuffer | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [segIndex, setSegIndex] = useState<number>(loadPlayIndex());
+  const [segIndex, setSegIndex] = useState<number>(0);
+
+  useEffect(() => {
+    const lastIdx = loadPlayIndex();
+    setSegIndex(lastIdx);
+  }, []);
 
   const stopPlayback = () => {
     if (!sourceNodeRef) {
