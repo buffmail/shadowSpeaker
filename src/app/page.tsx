@@ -150,7 +150,7 @@ export default function Home() {
     setIsPlaying(false);
   };
 
-  const playAudioSegment = async (index: number) => {
+  const playAudioSegment = async (index: number, loop: boolean) => {
     try {
       if (!audioContextRef.current || !audioBufferRef.current) return;
       stopPlayback();
@@ -176,9 +176,17 @@ export default function Home() {
       const source = ctx.createBufferSource();
       source.buffer = segmentBuffer; // Use the smaller segment buffer
       source.connect(ctx.destination);
-      source.loop = true;
+      source.loop = loop;
 
       sourceNodeRef.current = source;
+
+      if (loop === false && index < segments.length - 1) {
+        source.addEventListener("ended", () => {
+          if (sourceNodeRef.current) {
+            playAudioSegment(index + 1, loop);
+          }
+        });
+      }
 
       source.start();
       setIsPlaying(true);
@@ -245,7 +253,7 @@ export default function Home() {
             <div className="flex gap-4">
               <button
                 onClick={() =>
-                  isPlaying ? stopPlayback() : playAudioSegment(segIndex)
+                  isPlaying ? stopPlayback() : playAudioSegment(segIndex, false)
                 }
                 className={`cursor-pointer ${
                   isPlaying
@@ -263,7 +271,9 @@ export default function Home() {
           {mediaLoaded && (
             <div className="flex gap-8">
               <div
-                onClick={() => segIndex > 0 && playAudioSegment(segIndex - 1)}
+                onClick={() =>
+                  segIndex > 0 && playAudioSegment(segIndex - 1, true)
+                }
                 className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
               >
                 Prev
@@ -271,7 +281,7 @@ export default function Home() {
               <div
                 onClick={() =>
                   segIndex < segments.length - 1 &&
-                  playAudioSegment(segIndex + 1)
+                  playAudioSegment(segIndex + 1, true)
                 }
                 className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
               >
@@ -304,7 +314,7 @@ export default function Home() {
                     <td className="p-0">
                       <button
                         className="bg-blue-500 text-white px-3 py-1 rounded"
-                        onClick={() => playAudioSegment(index)}
+                        onClick={() => playAudioSegment(index, true)}
                       >
                         Play
                       </button>
