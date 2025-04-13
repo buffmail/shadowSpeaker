@@ -83,7 +83,6 @@ const createSegmentBuffer = (
     sampleRate
   );
 
-  // Copy the segment data from the original buffer to the new buffer
   for (let channel = 0; channel < numberOfChannels; channel++) {
     segmentBuffer.copyToChannel(
       sourceBuffer
@@ -113,6 +112,33 @@ export default function Home() {
   useEffect(() => {
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
+
+    (async () => {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+
+      const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
+      const audioBuffer = await audioContextRef.current.decodeAudioData(
+        arrayBuffer
+      );
+
+      audioBufferRef.current = audioBuffer;
+
+      const srtContent = await opfsRead(OPFS_SRT_NAME);
+      const decoder = new TextDecoder();
+      const srtString = decoder.decode(srtContent);
+
+      const parser = new srtParser();
+      const segments: Segment[] = parser.fromSrt(srtString).map((elem) => ({
+        startTime: elem.startSeconds,
+        endTime: elem.endSeconds,
+        text: elem.text,
+      }));
+      setSegments(segments);
+
+      setStatus("Audio loaded. Click Play to start loop.");
+    })();
   }, []);
 
   const stopPlayback = () => {
@@ -147,16 +173,13 @@ export default function Home() {
         durationSec
       );
 
-      // Create and set up source node
       const source = ctx.createBufferSource();
       source.buffer = segmentBuffer; // Use the smaller segment buffer
       source.connect(ctx.destination);
       source.loop = true;
 
-      // Store source node for later stopping
       sourceNodeRef.current = source;
 
-      // Start playing from the beginning of the segment buffer
       source.start();
       setIsPlaying(true);
       setStatus(`current: ${index + 1} / ${segments.length}`);
@@ -187,7 +210,6 @@ export default function Home() {
       });
 
       const file = await fileHandle.getFile();
-      // Only save to OPFS if it's an audio file
       await opfsWrite(
         file,
         input === "audio" ? OPFS_AUDIO_NAME : OPFS_SRT_NAME
@@ -196,36 +218,6 @@ export default function Home() {
       console.error("Error handling file:", error);
       setStatus(`Error processing ${input} file`);
     }
-  };
-
-  // Stop any current playback
-  const handleFileLoad = async () => {
-    stopPlayback();
-
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
-
-    const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
-    const audioBuffer = await audioContextRef.current.decodeAudioData(
-      arrayBuffer
-    );
-
-    audioBufferRef.current = audioBuffer;
-
-    const srtContent = await opfsRead(OPFS_SRT_NAME);
-    const decoder = new TextDecoder();
-    const srtString = decoder.decode(await srtContent);
-
-    const parser = new srtParser();
-    const segments: Segment[] = parser.fromSrt(srtString).map((elem) => ({
-      startTime: elem.startSeconds,
-      endTime: elem.endSeconds,
-      text: elem.text,
-    }));
-    setSegments(segments);
-
-    setStatus("Audio loaded. Click Play to start loop.");
   };
 
   return (
@@ -243,12 +235,6 @@ export default function Home() {
             className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
             Select SRT File
-          </button>
-          <button
-            onClick={handleFileLoad}
-            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Load
           </button>
         </div>
         {audioBufferRef.current && (
