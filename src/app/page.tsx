@@ -60,10 +60,6 @@ const createSegmentBuffer = (
   const sampleRate = sourceBuffer.sampleRate;
   const numberOfChannels = sourceBuffer.numberOfChannels;
 
-  window.console.log(
-    `sampleRate: ${sampleRate}, channels: ${numberOfChannels}, audioCtx ${ctx.sampleRate}`
-  );
-
   const segmentBuffer = ctx.createBuffer(
     numberOfChannels,
     Math.floor(durationSec * sampleRate),
@@ -95,6 +91,7 @@ export default function Home() {
   const sourceNodeRef = useRef<AudioBufferSourceNode | undefined>(undefined);
   const audioBufferRef = useRef<AudioBuffer | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [segIndex, setSegIndex] = useState<number>(0);
 
   const stopPlayback = () => {
     if (!sourceNodeRef) {
@@ -118,6 +115,8 @@ export default function Home() {
       const startSec = segment.startTime;
       const durationSec = segment.endTime - segment.startTime;
 
+      setSegIndex(index);
+
       const segmentBuffer = createSegmentBuffer(
         ctx,
         audioBufferRef.current,
@@ -137,7 +136,7 @@ export default function Home() {
       // Start playing from the beginning of the segment buffer
       source.start();
       setIsPlaying(true);
-      setStatus("Playing audio segment in loop...");
+      setStatus(`current: ${index + 1} / ${segments.length}`);
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
@@ -251,11 +250,29 @@ export default function Home() {
         {status && (
           <p className="text-sm text-gray-600 dark:text-gray-400">{status}</p>
         )}
+        {audioBufferRef.current && (
+          <div className="flex gap-8">
+            <button
+              onClick={() => segIndex > 0 && playAudioSegment(segIndex - 1)}
+              className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-24 py-8 rounded-2xl font-medium transition-colors text-3xl"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() =>
+                segIndex < segments.length - 1 && playAudioSegment(segIndex + 1)
+              }
+              className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-24 py-8 rounded-2xl font-medium transition-colors text-3xl"
+            >
+              Next
+            </button>
+          </div>
+        )}
         {segments.length > 0 && (
           <div className="mt-4 w-full max-w-2xl">
-            <table className="w-full border-collapse">
+            <table className="w-full">
               <thead>
-                <tr className="bg-gray-100 dark:bg-gray-800">
+                <tr className="bg-gray-800">
                   <th className="p-2 text-left">Text</th>
                   <th className="p-2 w-24"></th>
                 </tr>
@@ -264,12 +281,15 @@ export default function Home() {
                 {segments.map((segment, index) => (
                   <tr
                     key={index}
-                    className="border-t border-gray-200 dark:border-gray-700"
+                    style={{
+                      backgroundColor:
+                        index === segIndex ? "#4B5563" : "transparent",
+                    }}
                   >
                     <td className="p-2">{segment.text}</td>
                     <td className="p-2">
                       <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                        className="bg-blue-500 text-white px-3 py-1 rounded"
                         onClick={() => playAudioSegment(index)}
                       >
                         Play
