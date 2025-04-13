@@ -3,6 +3,18 @@
 import { useState, useRef } from "react";
 import srtParser from "srt-parser-2";
 
+const LS_INDEX = "lastPlayIndex";
+
+const loadPlayIndex = () => {
+  const idxStr = localStorage.getItem(LS_INDEX);
+  if (!idxStr) return 0;
+  return parseInt(idxStr);
+};
+
+const savePlayIndex = (index: number) => {
+  localStorage.setItem(LS_INDEX, index.toString());
+};
+
 interface FilePickerAcceptType {
   description: string;
   accept: {
@@ -91,7 +103,7 @@ export default function Home() {
   const sourceNodeRef = useRef<AudioBufferSourceNode | undefined>(undefined);
   const audioBufferRef = useRef<AudioBuffer | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [segIndex, setSegIndex] = useState<number>(0);
+  const [segIndex, setSegIndex] = useState<number>(loadPlayIndex());
 
   const stopPlayback = () => {
     if (!sourceNodeRef) {
@@ -116,6 +128,7 @@ export default function Home() {
       const durationSec = segment.endTime - segment.startTime;
 
       setSegIndex(index);
+      savePlayIndex(index);
 
       const segmentBuffer = createSegmentBuffer(
         ctx,
@@ -179,19 +192,15 @@ export default function Home() {
   const handleFileLoad = async () => {
     stopPlayback();
 
-    // Create AudioContext if it doesn't exist
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
     }
 
-    // Read and decode the audio file
     const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
     const audioBuffer = await audioContextRef.current.decodeAudioData(
       arrayBuffer
     );
 
-    window.console.log("audio buffer loaded.");
-    // Store the decoded audio buffer
     audioBufferRef.current = audioBuffer;
 
     const srtContent = await opfsRead(OPFS_SRT_NAME);
@@ -204,7 +213,6 @@ export default function Home() {
       endTime: elem.endSeconds,
       text: elem.text,
     }));
-    window.console.log(segments);
     setSegments(segments);
 
     setStatus("Audio loaded. Click Play to start loop.");
