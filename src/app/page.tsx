@@ -7,7 +7,7 @@ const LS_INDEX = "lastPlayIndex";
 
 const loadPlayIndex = () => {
   if (window.localStorage) {
-    const idxStr = localStorage.getItem(LS_INDEX);
+    const idxStr = window.localStorage.getItem(LS_INDEX);
     if (!idxStr) return 0;
     return parseInt(idxStr);
   }
@@ -15,7 +15,9 @@ const loadPlayIndex = () => {
 };
 
 const savePlayIndex = (index: number) => {
-  localStorage.setItem(LS_INDEX, index.toString());
+  if (window.localStorage) {
+    window.localStorage.setItem(LS_INDEX, index.toString());
+  }
 };
 
 interface FilePickerAcceptType {
