@@ -310,10 +310,12 @@ export default function Home() {
                     }}
                   >
                     <td className="p-0 text-center">{index + 1}</td>
-                    <td className="p-0">{segment.text}</td>
+                    <td className="p-0 min-w-0">
+                      <div className="truncate">{segment.text}</div>
+                    </td>
                     <td className="p-0">
                       <button
-                        className="bg-blue-500 text-white px-3 py-1 rounded"
+                        className="bg-blue-500 text-white px-0 py-0 rounded"
                         onClick={() => playAudioSegment(index, true)}
                       >
                         Play
