@@ -6,9 +6,12 @@ import srtParser from "srt-parser-2";
 const LS_INDEX = "lastPlayIndex";
 
 const loadPlayIndex = () => {
-  const idxStr = localStorage.getItem(LS_INDEX);
-  if (!idxStr) return 0;
-  return parseInt(idxStr);
+  if (window.localStorage) {
+    const idxStr = localStorage.getItem(LS_INDEX);
+    if (!idxStr) return 0;
+    return parseInt(idxStr);
+  }
+  return 0;
 };
 
 const savePlayIndex = (index: number) => {
