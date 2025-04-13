@@ -274,7 +274,7 @@ export default function Home() {
                 onClick={() =>
                   segIndex > 0 && playAudioSegment(segIndex - 1, true)
                 }
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-4 rounded-2xl font-medium transition-colors text-6xl border-2 border-blue-500 text-white"
               >
                 Prev
               </div>
@@ -283,7 +283,7 @@ export default function Home() {
                   segIndex < segments.length - 1 &&
                   playAudioSegment(segIndex + 1, true)
                 }
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-4 rounded-2xl font-medium transition-colors text-6xl border-2 border-blue-500 text-white"
               >
                 Next
               </div>
