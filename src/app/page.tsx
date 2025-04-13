@@ -220,6 +220,8 @@ export default function Home() {
     }
   };
 
+  const mediaLoaded = audioBufferRef.current !== undefined;
+
   return (
     <main className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 p-8">
@@ -237,43 +239,47 @@ export default function Home() {
             Select SRT File
           </button>
         </div>
-        {audioBufferRef.current && (
-          <div className="flex gap-4">
-            <button
-              onClick={() =>
-                isPlaying ? stopPlayback() : playAudioSegment(segIndex)
-              }
-              className={`cursor-pointer ${
-                isPlaying
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-green-500 hover:bg-green-600"
-              } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
-            >
-              {isPlaying ? "Stop" : "Play"}
-            </button>
-          </div>
-        )}
-        {status && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">{status}</p>
-        )}
-        {audioBufferRef.current && (
-          <div className="flex gap-8">
-            <button
-              onClick={() => segIndex > 0 && playAudioSegment(segIndex - 1)}
-              className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-24 py-8 rounded-2xl font-medium transition-colors text-3xl"
-            >
-              Prev
-            </button>
-            <button
-              onClick={() =>
-                segIndex < segments.length - 1 && playAudioSegment(segIndex + 1)
-              }
-              className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-24 py-8 rounded-2xl font-medium transition-colors text-3xl"
-            >
-              Next
-            </button>
-          </div>
-        )}
+
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 p-8">
+          {audioBufferRef.current && (
+            <div className="flex gap-4">
+              <button
+                onClick={() =>
+                  isPlaying ? stopPlayback() : playAudioSegment(segIndex)
+                }
+                className={`cursor-pointer ${
+                  isPlaying
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-500 hover:bg-green-600"
+                } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
+              >
+                {isPlaying ? "Stop" : "Play"}
+              </button>
+            </div>
+          )}
+          {status && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">{status}</p>
+          )}
+          {mediaLoaded && (
+            <div className="flex gap-8">
+              <div
+                onClick={() => segIndex > 0 && playAudioSegment(segIndex - 1)}
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
+              >
+                Prev
+              </div>
+              <div
+                onClick={() =>
+                  segIndex < segments.length - 1 &&
+                  playAudioSegment(segIndex + 1)
+                }
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-8 rounded-2xl font-medium transition-colors text-8xl border-2 border-blue-500 text-white"
+              >
+                Next
+              </div>
+            </div>
+          )}
+        </div>
         {segments.length > 0 && (
           <div className="mt-4 w-full max-w-2xl">
             <table className="w-full">
@@ -293,9 +299,9 @@ export default function Home() {
                         index === segIndex ? "#4B5563" : "transparent",
                     }}
                   >
-                    <td className="p-2 text-center">{index + 1}</td>
-                    <td className="p-2">{segment.text}</td>
-                    <td className="p-2">
+                    <td className="p-0 text-center">{index + 1}</td>
+                    <td className="p-0">{segment.text}</td>
+                    <td className="p-0">
                       <button
                         className="bg-blue-500 text-white px-3 py-1 rounded"
                         onClick={() => playAudioSegment(index)}
