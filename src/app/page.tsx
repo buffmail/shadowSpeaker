@@ -240,14 +240,16 @@ export default function Home() {
         {audioBufferRef.current && (
           <div className="flex gap-4">
             <button
-              onClick={stopPlayback}
+              onClick={() =>
+                isPlaying ? stopPlayback() : playAudioSegment(segIndex)
+              }
               className={`cursor-pointer ${
                 isPlaying
                   ? "bg-red-500 hover:bg-red-600"
                   : "bg-green-500 hover:bg-green-600"
               } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
             >
-              {"Stop"}
+              {isPlaying ? "Stop" : "Play"}
             </button>
           </div>
         )}
@@ -277,6 +279,7 @@ export default function Home() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-800">
+                  <th className="p-2 w-16">No.</th>
                   <th className="p-2 text-left">Text</th>
                   <th className="p-2 w-24"></th>
                 </tr>
@@ -290,6 +293,7 @@ export default function Home() {
                         index === segIndex ? "#4B5563" : "transparent",
                     }}
                   >
+                    <td className="p-2 text-center">{index + 1}</td>
                     <td className="p-2">{segment.text}</td>
                     <td className="p-2">
                       <button
