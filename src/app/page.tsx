@@ -291,7 +291,7 @@ export default function Home() {
           )}
         </div>
         {segments.length > 0 && (
-          <div className="mt-4 w-full">
+          <div className="mt-4 max-w-[95%]">
             <table>
               <thead>
                 {/*
