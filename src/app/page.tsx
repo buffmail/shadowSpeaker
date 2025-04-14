@@ -64,6 +64,20 @@ const opfsRead = async (fileName: string) => {
   return ab;
 };
 
+const opfsExist = async (filename: string) => {
+  const root = await navigator.storage.getDirectory();
+  try {
+    await root.getFileHandle(filename, { create: false });
+    return true;
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "NotFoundError") {
+      return false;
+    } else {
+      throw err;
+    }
+  }
+};
+
 interface Segment {
   startTime: number;
   endTime: number;
@@ -102,33 +116,51 @@ const createSegmentBuffer = (
   return segmentBuffer;
 };
 
+interface PlayContext {
+  audioContext: AudioContext;
+  audioBuffer?: AudioBuffer;
+  playInfo?: {
+    abSrcNode: AudioBufferSourceNode;
+    stopListener?: () => void;
+  };
+}
+
+const stopPlayback = (playContext: PlayContext) => {
+  const playInfo = playContext.playInfo;
+  if (!playInfo) {
+    return;
+  }
+
+  if (playInfo.stopListener) {
+    playInfo.abSrcNode.removeEventListener("ended", playInfo.stopListener);
+  }
+  playInfo.abSrcNode.stop();
+  playContext.playInfo = undefined;
+};
+
 export default function Home() {
   const [status, setStatus] = useState<string>("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioContextRef = useRef<AudioContext | undefined>(undefined);
-  const sourceNodeRef = useRef<AudioBufferSourceNode | undefined>(undefined);
-  const stopListenerRef = useRef<(() => void) | undefined>(undefined);
-  const audioBufferRef = useRef<AudioBuffer | undefined>(undefined);
+  const playCtxRef = useRef<PlayContext | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [segIndex, setSegIndex] = useState<number>(0);
 
   useEffect(() => {
+    const audioContext = new AudioContext();
+    const playContext: PlayContext = { audioContext };
+    playCtxRef.current = playContext;
+
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
 
     (async () => {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
+      if (!opfsExist(OPFS_AUDIO_NAME)) {
+        setStatus(`No audio file cached.`);
+        return;
       }
-
       const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
-
       setStatus("audio buffer found. decoding.");
-      const audioBuffer = await audioContextRef.current.decodeAudioData(
-        arrayBuffer
-      );
-
-      audioBufferRef.current = audioBuffer;
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      playContext.audioBuffer = audioBuffer;
 
       const srtContent = await opfsRead(OPFS_SRT_NAME);
       const decoder = new TextDecoder();
@@ -147,28 +179,15 @@ export default function Home() {
     })();
   }, []);
 
-  const stopPlayback = () => {
-    if (!sourceNodeRef) {
-      return;
-    }
-    if (stopListenerRef.current) {
-      sourceNodeRef.current?.removeEventListener(
-        "ended",
-        stopListenerRef.current
-      );
-      stopListenerRef.current = undefined;
-    }
-    sourceNodeRef.current?.stop();
-    sourceNodeRef.current = undefined;
-    setIsPlaying(false);
-  };
-
   const playAudioSegment = async (index: number, loop: boolean) => {
     try {
-      if (!audioContextRef.current || !audioBufferRef.current) return;
-      stopPlayback();
+      const playContext = playCtxRef.current;
+      if (!playContext) return;
+      const { audioContext, audioBuffer } = playContext;
+      if (!audioBuffer) return;
 
-      const ctx = audioContextRef.current;
+      stopPlayback(playContext);
+
       const segment = segments[index];
       if (!segment) {
         return;
@@ -180,33 +199,31 @@ export default function Home() {
       savePlayIndex(index);
 
       const segmentBuffer = createSegmentBuffer(
-        ctx,
-        audioBufferRef.current,
+        audioContext,
+        audioBuffer,
         startSec,
         durationSec
       );
 
-      const source = ctx.createBufferSource();
-      source.buffer = segmentBuffer; // Use the smaller segment buffer
-      source.connect(ctx.destination);
-      source.loop = loop;
+      const abSrcNode = audioContext.createBufferSource();
+      abSrcNode.buffer = segmentBuffer; // Use the smaller segment buffer
+      abSrcNode.connect(audioContext.destination);
+      abSrcNode.loop = loop;
 
-      sourceNodeRef.current = source;
-
+      let stopListener: undefined | (() => void) = undefined;
       if (loop === false && index < segments.length - 1) {
-        stopListenerRef.current = () => {
+        stopListener = () => {
           playAudioSegment(index + 1, loop);
         };
-        source.addEventListener("ended", stopListenerRef.current);
+        abSrcNode.addEventListener("ended", stopListener);
       }
 
-      source.start();
-      setIsPlaying(true);
+      playContext.playInfo = { abSrcNode, stopListener };
+      abSrcNode.start();
       setStatus(`current: ${index + 1} / ${segments.length}`);
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
-      setIsPlaying(false);
     }
   };
 
@@ -240,7 +257,12 @@ export default function Home() {
     }
   };
 
-  const mediaLoaded = audioBufferRef.current !== undefined;
+  const playCtx = playCtxRef.current;
+  if (!playCtx) {
+    return null;
+  }
+
+  const { audioBuffer, playInfo } = playCtx;
 
   return (
     <main className="min-h-screen flex items-center justify-center">
@@ -261,35 +283,37 @@ export default function Home() {
         </div>
 
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 p-8">
-          {audioBufferRef.current && (
+          {audioBuffer && (
             <div className="flex gap-4">
               <button
-                onClick={() =>
-                  isPlaying ? stopPlayback() : playAudioSegment(segIndex, false)
-                }
+                onClick={() => {
+                  if (playInfo) {
+                    stopPlayback(playCtx);
+                  } else {
+                    playAudioSegment(segIndex, false);
+                  }
+                }}
                 className={`cursor-pointer ${
-                  isPlaying
+                  playInfo
                     ? "bg-red-500 hover:bg-red-600"
                     : "bg-green-500 hover:bg-green-600"
                 } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
               >
-                {isPlaying ? "Stop" : "Play"}
+                {playInfo ? "Stop" : "Play"}
               </button>
             </div>
           )}
-          {status && (
-            <p
-              onClick={() => {
-                document
-                  .getElementById(getRowId(segIndex))
-                  ?.scrollIntoView({ behavior: "smooth", block: "center" });
-              }}
-              className="text-2xl text-gray-600 dark:text-gray-400"
-            >
-              {status}
-            </p>
-          )}
-          {mediaLoaded && (
+          <p
+            onClick={() => {
+              document
+                .getElementById(getRowId(segIndex))
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            className="text-2xl text-gray-600 dark:text-gray-400"
+          >
+            {status}
+          </p>
+          {audioBuffer && (
             <div className="flex gap-8">
               <div
                 onClick={() =>
