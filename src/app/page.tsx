@@ -14,6 +14,8 @@ const loadPlayIndex = () => {
   return 0;
 };
 
+const getRowId = (index: number) => `id-${index}`;
+
 const savePlayIndex = (index: number) => {
   if (window.localStorage) {
     window.localStorage.setItem(LS_INDEX, index.toString());
@@ -105,6 +107,7 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioContextRef = useRef<AudioContext | undefined>(undefined);
   const sourceNodeRef = useRef<AudioBufferSourceNode | undefined>(undefined);
+  const stopListenerRef = useRef<(() => void) | undefined>(undefined);
   const audioBufferRef = useRef<AudioBuffer | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [segIndex, setSegIndex] = useState<number>(0);
@@ -119,6 +122,8 @@ export default function Home() {
       }
 
       const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
+
+      setStatus("audio buffer found. decoding.");
       const audioBuffer = await audioContextRef.current.decodeAudioData(
         arrayBuffer
       );
@@ -128,6 +133,7 @@ export default function Home() {
       const srtContent = await opfsRead(OPFS_SRT_NAME);
       const decoder = new TextDecoder();
       const srtString = decoder.decode(srtContent);
+      setStatus("srt file found. setting.");
 
       const parser = new srtParser();
       const segments: Segment[] = parser.fromSrt(srtString).map((elem) => ({
@@ -137,13 +143,20 @@ export default function Home() {
       }));
       setSegments(segments);
 
-      setStatus("Audio loaded. Click Play to start loop.");
+      setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
     })();
   }, []);
 
   const stopPlayback = () => {
     if (!sourceNodeRef) {
       return;
+    }
+    if (stopListenerRef.current) {
+      sourceNodeRef.current?.removeEventListener(
+        "ended",
+        stopListenerRef.current
+      );
+      stopListenerRef.current = undefined;
     }
     sourceNodeRef.current?.stop();
     sourceNodeRef.current = undefined;
@@ -181,11 +194,10 @@ export default function Home() {
       sourceNodeRef.current = source;
 
       if (loop === false && index < segments.length - 1) {
-        source.addEventListener("ended", () => {
-          if (sourceNodeRef.current) {
-            playAudioSegment(index + 1, loop);
-          }
-        });
+        stopListenerRef.current = () => {
+          playAudioSegment(index + 1, loop);
+        };
+        source.addEventListener("ended", stopListenerRef.current);
       }
 
       source.start();
@@ -266,7 +278,16 @@ export default function Home() {
             </div>
           )}
           {status && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">{status}</p>
+            <p
+              onClick={() => {
+                document
+                  .getElementById(getRowId(segIndex))
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}
+              className="text-2xl text-gray-600 dark:text-gray-400"
+            >
+              {status}
+            </p>
           )}
           {mediaLoaded && (
             <div className="flex gap-8">
@@ -294,18 +315,17 @@ export default function Home() {
           <div className="mt-4 max-w-[95%]">
             <table>
               <thead>
-                {/*
                 <tr className="bg-gray-800">
                   <th className="p-2 w-16">No.</th>
-                  <th className="p-2 flex-shrink min-w-0 text-left">Text</th>
+                  <th className="p-2 min-w-0 text-left">Text</th>
                   <th className="p-2 w-24"></th>
                 </tr>
-                */}
               </thead>
               <tbody>
                 {segments.map((segment, index) => (
                   <tr
                     key={index}
+                    id={getRowId(index)}
                     style={{
                       backgroundColor:
                         index === segIndex ? "#4B5563" : "transparent",
