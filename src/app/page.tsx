@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
 
 const LS_INDEX = "lastPlayIndex";
+const BATCH_PLAY_LENGTH = 50;
 
 const loadPlayIndex = () => {
   if (window.localStorage) {
@@ -120,6 +121,7 @@ interface PlayContext {
   audioContext: AudioContext;
   audioBuffer?: AudioBuffer;
   playInfo?: {
+    rangeInfo?: { beginIdx: number; endIdx: number };
     abSrcNode: AudioBufferSourceNode;
     stopListener?: () => void;
   };
@@ -186,6 +188,7 @@ export default function Home() {
       const { audioContext, audioBuffer } = playContext;
       if (!audioBuffer) return;
 
+      const prevRangeInfo = playContext.playInfo?.rangeInfo;
       stopPlayback(playContext);
 
       const segment = segments[index];
@@ -211,16 +214,31 @@ export default function Home() {
       abSrcNode.loop = loop;
 
       let stopListener: undefined | (() => void) = undefined;
-      if (loop === false && index < segments.length - 1) {
+      let rangeInfo: undefined | { beginIdx: number; endIdx: number } =
+        undefined;
+      if (loop === false) {
+        rangeInfo = prevRangeInfo
+          ? prevRangeInfo
+          : {
+              beginIdx: index,
+              endIdx: Math.min(segments.length, index + BATCH_PLAY_LENGTH),
+            };
+        let nextIndex = index + 1;
+        if (nextIndex >= rangeInfo.endIdx) {
+          nextIndex = rangeInfo.beginIdx;
+        }
         stopListener = () => {
-          playAudioSegment(index + 1, loop);
+          playAudioSegment(nextIndex, loop);
         };
         abSrcNode.addEventListener("ended", stopListener);
       }
 
-      playContext.playInfo = { abSrcNode, stopListener };
+      playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
       abSrcNode.start();
-      setStatus(`current: ${index + 1} / ${segments.length}`);
+      const rangeStr = rangeInfo
+        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}]`
+        : "";
+      setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
@@ -289,6 +307,7 @@ export default function Home() {
                 onClick={() => {
                   if (playInfo) {
                     stopPlayback(playCtx);
+                    setStatus(status + " stopped");
                   } else {
                     playAudioSegment(segIndex, false);
                   }
@@ -346,27 +365,41 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {segments.map((segment, index) => (
-                  <tr
-                    key={index}
-                    id={getRowId(index)}
-                    style={{
-                      backgroundColor:
-                        index === segIndex ? "#4B5563" : "transparent",
-                    }}
-                  >
-                    <td className="p-0 text-center">{index + 1}</td>
-                    <td className="p-0 break-words min-w-0">{segment.text}</td>
-                    <td className="p-0">
-                      <button
-                        className="bg-blue-500 text-white px-0 py-0 rounded"
-                        onClick={() => playAudioSegment(index, true)}
+                {segments.map((segment, index) => {
+                  const betweenRange = playInfo?.rangeInfo
+                    ? playInfo.rangeInfo.beginIdx <= index &&
+                      index < playInfo.rangeInfo.endIdx
+                    : false;
+                  return (
+                    <tr
+                      key={index}
+                      id={getRowId(index)}
+                      style={{
+                        backgroundColor:
+                          index === segIndex ? "#4B5563" : "transparent",
+                      }}
+                    >
+                      <td
+                        className={`p-0 text-center ${
+                          betweenRange ? "border-l-2 border-blue-500" : ""
+                        }`}
                       >
-                        Play
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        {index + 1}
+                      </td>
+                      <td className="p-0 break-words min-w-0">
+                        {segment.text}
+                      </td>
+                      <td className="p-0">
+                        <button
+                          className="bg-blue-500 text-white px-0 py-0 rounded"
+                          onClick={() => playAudioSegment(index, true)}
+                        >
+                          Play
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
