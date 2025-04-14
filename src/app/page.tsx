@@ -291,14 +291,16 @@ export default function Home() {
           )}
         </div>
         {segments.length > 0 && (
-          <div className="mt-4 w-full max-w-2xl">
-            <table className="w-full">
+          <div className="mt-4 w-full">
+            <table>
               <thead>
+                {/*
                 <tr className="bg-gray-800">
                   <th className="p-2 w-16">No.</th>
-                  <th className="p-2 text-left">Text</th>
+                  <th className="p-2 flex-shrink min-w-0 text-left">Text</th>
                   <th className="p-2 w-24"></th>
                 </tr>
+                */}
               </thead>
               <tbody>
                 {segments.map((segment, index) => (
@@ -310,9 +312,7 @@ export default function Home() {
                     }}
                   >
                     <td className="p-0 text-center">{index + 1}</td>
-                    <td className="p-0 min-w-0">
-                      <div className="truncate">{segment.text}</div>
-                    </td>
+                    <td className="p-0 break-words min-w-0">{segment.text}</td>
                     <td className="p-0">
                       <button
                         className="bg-blue-500 text-white px-0 py-0 rounded"
