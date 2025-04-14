@@ -312,7 +312,7 @@ export default function Home() {
           )}
         </div>
         {segments.length > 0 && (
-          <div className="mt-4 max-w-[95%]">
+          <div className="mt-4 max-w-[90%]">
             <table>
               <thead>
                 <tr className="bg-gray-800">
