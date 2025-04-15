@@ -217,11 +217,15 @@ export default function Home() {
       let rangeInfo: undefined | { beginIdx: number; endIdx: number } =
         undefined;
       if (loop === false) {
+        const newBeginIdx = index - (index % BATCH_PLAY_LENGTH);
         rangeInfo = prevRangeInfo
           ? prevRangeInfo
           : {
-              beginIdx: index,
-              endIdx: Math.min(segments.length, index + BATCH_PLAY_LENGTH),
+              beginIdx: newBeginIdx,
+              endIdx: Math.min(
+                segments.length,
+                newBeginIdx + BATCH_PLAY_LENGTH
+              ),
             };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
