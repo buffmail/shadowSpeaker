@@ -7,6 +7,11 @@
   resolved "https://registry.yarnpkg.com/@alloc/quick-lru/-/quick-lru-5.2.0.tgz#7bf68b20c0a350f936915fcae06f58e32007ce30"
   integrity sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==
 
+"@breezystack/lamejs@^1.2.7":
+  version "1.2.7"
+  resolved "https://registry.yarnpkg.com/@breezystack/lamejs/-/lamejs-1.2.7.tgz#c4779f7f0b6b685da675ebbaaff85e52187a51ad"
+  integrity sha512-6wc7ck65ctA75Hq7FYHTtTvGnYs6msgdxiSUICQ+A01nVOWg6rqouZB8IdyteRlfpYYiFovkf67dIeOgWIUzTA==
+
 "@emnapi/core@^1.4.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.4.0.tgz#8844b02d799198158ac1fea21ae2bc81b881da9a"
@@ -495,6 +500,11 @@
   version "0.0.216"
   resolved "https://registry.yarnpkg.com/@types/web/-/web-0.0.216.tgz#9ff2fabf6e84bdb6d03de269f64f8af953b6477c"
   integrity sha512-HLaPWQKq1oh6aQv1JLRsiH0vW4VsO+L/zTOeOUmoGBnLVR2wCj4w4oWfa/0O5JFMqZXWC6VpipqQU6B1v2M/qg==
+
+"@types/wicg-file-system-access@^2023.10.6":
+  version "2023.10.6"
+  resolved "https://registry.yarnpkg.com/@types/wicg-file-system-access/-/wicg-file-system-access-2023.10.6.tgz#cd8149b14c31b73a53478e656790873945e73ba1"
+  integrity sha512-YO/183gNRzZFSdKu+ikkD7ambAj4PhgjFAF2A/Mw/7wroSF6ne8r804RkpZzqrJ/F6DO2/IYlQF/ULOZ/bhKyA==
 
 "@typescript-eslint/eslint-plugin@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
   version "8.29.1"
@@ -2366,6 +2376,13 @@ run-parallel@^1.1.9:
   dependencies:
     queue-microtask "^1.2.2"
 
+rxjs@^7.8.2:
+  version "7.8.2"
+  resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.2.tgz#955bc473ed8af11a002a2be52071bf475638607b"
+  integrity sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==
+  dependencies:
+    tslib "^2.1.0"
+
 safe-array-concat@^1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/safe-array-concat/-/safe-array-concat-1.1.3.tgz#c9e54ec4f603b0bbb8e7e5007a5ee7aecd1538c3"
@@ -2686,7 +2703,7 @@ tsconfig-paths@^3.15.0:
     minimist "^1.2.6"
     strip-bom "^3.0.0"
 
-tslib@^2.4.0, tslib@^2.8.0:
+tslib@^2.1.0, tslib@^2.4.0, tslib@^2.8.0:
   version "2.8.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.8.1.tgz#612efe4ed235d567e8aba5f2a5fab70280ade83f"
   integrity sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==

@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "next": "15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "rxjs": "^7.8.2",
     "srt-parser-2": "^1.2.3"
   },
   "devDependencies": {
@@ -21,6 +23,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web": "^0.0.216",
+    "@types/wicg-file-system-access": "^2023.10.6",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
     "tailwindcss": "^4",

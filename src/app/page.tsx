@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
+import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
+import { AudioSample, splitMp3Segments } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
 const BATCH_PLAY_LENGTH = 50;
@@ -47,79 +49,15 @@ declare global {
 const OPFS_AUDIO_NAME = "audio.mp3";
 const OPFS_SRT_NAME = "transcript.srt";
 
-const opfsWrite = async (file: File, fileName: string) => {
-  const root = await navigator.storage.getDirectory();
-
-  const opfsFileHandle = await root.getFileHandle(fileName, { create: true });
-  const writable = await opfsFileHandle.createWritable();
-
-  await writable.write(file);
-  await writable.close();
-};
-
-const opfsRead = async (fileName: string) => {
-  const root = await navigator.storage.getDirectory();
-
-  const opfsFileHandle = await root.getFileHandle(fileName);
-  const ab = (await opfsFileHandle.getFile()).arrayBuffer();
-  return ab;
-};
-
-const opfsExist = async (filename: string) => {
-  const root = await navigator.storage.getDirectory();
-  try {
-    await root.getFileHandle(filename, { create: false });
-    return true;
-  } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === "NotFoundError") {
-      return false;
-    } else {
-      throw err;
-    }
-  }
-};
-
 interface Segment {
   startTime: number;
   endTime: number;
   text: string;
 }
 
-const createSegmentBuffer = (
-  ctx: AudioContext,
-  sourceBuffer: AudioBuffer,
-  startSec: number,
-  durationSec: number
-): AudioBuffer => {
-  const sampleRate = sourceBuffer.sampleRate;
-  const numberOfChannels = sourceBuffer.numberOfChannels;
-
-  const segmentBuffer = ctx.createBuffer(
-    numberOfChannels,
-    Math.floor(durationSec * sampleRate),
-    sampleRate
-  );
-
-  for (let channel = 0; channel < numberOfChannels; channel++) {
-    segmentBuffer.copyToChannel(
-      sourceBuffer
-        .getChannelData(channel)
-        .subarray(
-          Math.floor(startSec * sampleRate),
-          Math.floor(startSec * sampleRate) +
-            Math.floor(durationSec * sampleRate)
-        ),
-      channel,
-      0
-    );
-  }
-
-  return segmentBuffer;
-};
-
 interface PlayContext {
   audioContext: AudioContext;
-  audioBuffer?: AudioBuffer;
+  audioSample: AudioSample;
   playInfo?: {
     rangeInfo?: { beginIdx: number; endIdx: number };
     abSrcNode: AudioBufferSourceNode;
@@ -148,21 +86,24 @@ export default function Home() {
 
   useEffect(() => {
     const audioContext = new AudioContext();
-    const playContext: PlayContext = { audioContext };
+    const audioSample = new AudioSample(audioContext, setStatus);
+    const playContext: PlayContext = { audioContext, audioSample };
     playCtxRef.current = playContext;
 
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
 
     (async () => {
-      if (!opfsExist(OPFS_AUDIO_NAME)) {
-        setStatus(`No audio file cached.`);
+      const loaded = await audioSample.initSample(setStatus);
+      if (!loaded) {
+        setStatus(`No sample found`);
         return;
       }
-      const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
-      setStatus("audio buffer found. decoding.");
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      playContext.audioBuffer = audioBuffer;
+
+      if (!(await opfsExist(OPFS_SRT_NAME))) {
+        setStatus(`No srt`);
+        return;
+      }
 
       const srtContent = await opfsRead(OPFS_SRT_NAME);
       const decoder = new TextDecoder();
@@ -185,8 +126,8 @@ export default function Home() {
     try {
       const playContext = playCtxRef.current;
       if (!playContext) return;
-      const { audioContext, audioBuffer } = playContext;
-      if (!audioBuffer) return;
+      const { audioContext, audioSample } = playContext;
+      if (!audioSample.isLoaded()) return;
 
       const prevRangeInfo = playContext.playInfo?.rangeInfo;
       stopPlayback(playContext);
@@ -201,14 +142,13 @@ export default function Home() {
       setSegIndex(index);
       savePlayIndex(index);
 
-      const segmentBuffer = createSegmentBuffer(
-        audioContext,
-        audioBuffer,
+      const abSrcNode = audioContext.createBufferSource();
+
+      const segmentBuffer = await audioSample.createSegmentBuffer(
         startSec,
         durationSec
       );
 
-      const abSrcNode = audioContext.createBufferSource();
       abSrcNode.buffer = segmentBuffer; // Use the smaller segment buffer
       abSrcNode.connect(audioContext.destination);
       abSrcNode.loop = loop;
@@ -269,10 +209,23 @@ export default function Home() {
       });
 
       const file = await fileHandle.getFile();
+      if (input === "audio") {
+        await opfsClearAll("mp3");
+      }
       await opfsWrite(
-        file,
-        input === "audio" ? OPFS_AUDIO_NAME : OPFS_SRT_NAME
+        input === "audio" ? OPFS_AUDIO_NAME : OPFS_SRT_NAME,
+        file
       );
+
+      if (input === "audio" && playCtx) {
+        setStatus(`decoding audio`);
+        const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
+        const audioBuffer = await playCtx?.audioContext.decodeAudioData(
+          arrayBuffer
+        );
+
+        await splitMp3Segments(audioBuffer, setStatus);
+      }
     } catch (error) {
       console.error("Error handling file:", error);
       setStatus(`Error processing ${input} file`);
@@ -284,7 +237,9 @@ export default function Home() {
     return null;
   }
 
-  const { audioBuffer, playInfo } = playCtx;
+  const { audioSample, playInfo } = playCtx;
+
+  const isLoaded = audioSample.isLoaded();
 
   return (
     <main className="min-h-screen flex items-center justify-center">
@@ -305,7 +260,7 @@ export default function Home() {
         </div>
 
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 p-8">
-          {audioBuffer && (
+          {isLoaded && (
             <div className="flex gap-4">
               <button
                 onClick={() => {
@@ -336,7 +291,7 @@ export default function Home() {
           >
             {status}
           </p>
-          {audioBuffer && (
+          {isLoaded && (
             <div className="flex gap-8">
               <div
                 onClick={() =>
