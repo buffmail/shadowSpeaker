@@ -30,10 +30,18 @@ export const opfsExist = async (filename: string) => {
   }
 };
 
+interface FileSystemDirectoryHandle {
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+  values(): AsyncIterableIterator<FileSystemHandle>;
+  keys(): AsyncIterableIterator<string>;
+}
+
 export const opfsClearAll = async (ext: string | undefined) => {
   const root = await navigator.storage.getDirectory();
 
-  for await (const [name, handle] of root.entries()) {
+  for await (const [name, handle] of (
+    root as unknown as FileSystemDirectoryHandle
+  ).entries()) {
     if (handle.kind === "file") {
       if (ext !== undefined && !name.endsWith(ext)) continue;
       await root.removeEntry(name);
