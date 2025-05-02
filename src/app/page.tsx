@@ -78,6 +78,28 @@ const stopPlayback = (playContext: PlayContext) => {
   playContext.playInfo = undefined;
 };
 
+const beep = (audioContext: AudioContext, onEnd: () => void) => {
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  const durationSec = 0.1;
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+  gain.gain.value = 0.2;
+
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + durationSec);
+
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    gain.disconnect();
+    onEnd();
+  };
+};
+
 export default function Home() {
   const [status, setStatus] = useState<string>("");
   const playCtxRef = useRef<PlayContext | undefined>(undefined);
@@ -178,7 +200,12 @@ export default function Home() {
       }
 
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
-      abSrcNode.start();
+      const playBeep = loop === false && index === rangeInfo?.beginIdx;
+      if (playBeep) {
+        beep(audioContext, () => abSrcNode.start());
+      } else {
+        abSrcNode.start();
+      }
       const rangeStr = rangeInfo
         ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}]`
         : "";
