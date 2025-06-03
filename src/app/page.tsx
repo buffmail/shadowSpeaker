@@ -133,11 +133,34 @@ export default function Home() {
       setStatus("srt file found. setting.");
 
       const parser = new srtParser();
-      const segments: Segment[] = parser.fromSrt(srtString).map((elem) => ({
-        startTime: elem.startSeconds,
-        endTime: elem.endSeconds,
-        text: elem.text,
-      }));
+      const segments: Segment[] = parser
+        .fromSrt(srtString)
+        .map((elem) => ({
+          startMsec: Math.round(elem.startSeconds * 1000),
+          endMsec: Math.round(elem.endSeconds * 1000),
+          text: elem.text,
+        }))
+        .map((elem, idx, all) => {
+          const prevElem = all[idx - 1];
+          const nextElem = all[idx + 1];
+
+          const prevGapMsec =
+            prevElem === undefined ? 0 : elem.endMsec - prevElem.startMsec;
+          const nextGapMsec =
+            nextElem === undefined ? 0 : nextElem.startMsec - elem.endMsec;
+
+          const MAX_GAP_MSEC = 100;
+          const startMsec =
+            elem.startMsec - Math.min(MAX_GAP_MSEC, prevGapMsec / 2);
+          const endMsec =
+            elem.endMsec - Math.min(MAX_GAP_MSEC, nextGapMsec / 2);
+
+          return {
+            startTime: startMsec / 1000,
+            endTime: endMsec / 1000,
+            text: elem.text,
+          };
+        });
       setSegments(segments);
 
       setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
