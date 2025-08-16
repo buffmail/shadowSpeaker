@@ -6,7 +6,7 @@ import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
-const BATCH_PLAY_LENGTH = 50;
+const SCENE_TAG = /$\[SCENE] /
 
 const loadPlayIndex = () => {
   if (window.localStorage) {
@@ -53,6 +53,7 @@ interface Segment {
   startTime: number;
   endTime: number;
   text: string;
+  sceneIdx: number;
 }
 
 interface PlayContext {
@@ -132,14 +133,25 @@ export default function Home() {
       const srtString = decoder.decode(srtContent);
       setStatus("srt file found. setting.");
 
+      let sceneIdx = -1;
+
       const parser = new srtParser();
       const segments: Segment[] = parser
         .fromSrt(srtString)
-        .map((elem) => ({
-          startMsec: Math.round(elem.startSeconds * 1000),
-          endMsec: Math.round(elem.endSeconds * 1000),
-          text: elem.text,
-        }))
+        .map((elem) => {
+          const { startSeconds, endSeconds, text } = elem;
+
+          if (SCENE_TAG.test(text)) {
+            ++sceneIdx
+          }
+
+          return ({
+            startMsec: Math.round(startSeconds * 1000),
+            endMsec: Math.round(endSeconds * 1000),
+            text,
+            sceneIdx,
+          })
+        })
         .map((elem, idx, all) => {
           const prevElem = all[idx - 1];
           const nextElem = all[idx + 1];
@@ -149,7 +161,7 @@ export default function Home() {
           const nextGapMsec =
             nextElem === undefined ? 0 : nextElem.startMsec - elem.endMsec;
 
-          const MAX_GAP_MSEC = 200;
+          const MAX_GAP_MSEC = 400;
           const startMsec =
             elem.startMsec - Math.min(MAX_GAP_MSEC, prevGapMsec / 2);
           const endMsec =
@@ -159,6 +171,7 @@ export default function Home() {
             startTime: startMsec / 1000,
             endTime: endMsec / 1000,
             text: elem.text,
+            sceneIdx: elem.sceneIdx,
           };
         });
       setSegments(segments);
@@ -183,6 +196,7 @@ export default function Home() {
       }
       const startSec = segment.startTime;
       const durationSec = segment.endTime - segment.startTime;
+      const sceneIdx = segment.sceneIdx;
 
       setSegIndex(index);
       savePlayIndex(index);
@@ -202,16 +216,17 @@ export default function Home() {
       let rangeInfo: undefined | { beginIdx: number; endIdx: number } =
         undefined;
       if (loop === false) {
-        const newBeginIdx = index - (index % BATCH_PLAY_LENGTH);
+        const sceneBeginIdx = segments.findIndex(
+          (elem) => elem.sceneIdx === sceneIdx
+        );
+        const sceneEndIdx = segments.findIndex(
+          (elem) => elem.sceneIdx === sceneIdx + 1
+        );
+        const newBeginIdx = sceneBeginIdx === -1 ? index : sceneBeginIdx;
+        const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
         rangeInfo = prevRangeInfo
           ? prevRangeInfo
-          : {
-              beginIdx: newBeginIdx,
-              endIdx: Math.min(
-                segments.length,
-                newBeginIdx + BATCH_PLAY_LENGTH
-              ),
-            };
+          : { beginIdx: newBeginIdx, endIdx: newEndIdx, };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
           nextIndex = rangeInfo.beginIdx;
@@ -245,17 +260,22 @@ export default function Home() {
         types:
           input === "audio"
             ? [
-                {
-                  description: "Audio Files",
-                  accept: { "audio/*": [".mp3", ".wav", ".m4a", ".ogg"] },
-                },
-              ]
+              {
+                description: "Audio Files",
+                accept: { "audio/*": [".mp3", ".wav", ".m4a", ".ogg"] },
+              },
+            ]
             : [
-                {
-                  description: "Subtitle Files",
-                  accept: { "text/plain": [".srt"] },
+              {
+                description: "Subtitle Files",
+                accept: {
+                  "text/plain": [".srt"],
+                  "application/x-subrip": [".srt"],
+                  "text/srt": [".srt"],
+                  "application/srt": [".srt"]
                 },
-              ],
+              },
+            ],
       });
 
       const file = await fileHandle.getFile();
@@ -321,11 +341,10 @@ export default function Home() {
                     playAudioSegment(segIndex, false);
                   }
                 }}
-                className={`cursor-pointer ${
-                  playInfo
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-green-500 hover:bg-green-600"
-                } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
+                className={`cursor-pointer ${playInfo
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-green-500 hover:bg-green-600"
+                  } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
               >
                 {playInfo ? "Stop" : "Play"}
               </button>
@@ -377,7 +396,7 @@ export default function Home() {
                 {segments.map((segment, index) => {
                   const betweenRange = playInfo?.rangeInfo
                     ? playInfo.rangeInfo.beginIdx <= index &&
-                      index < playInfo.rangeInfo.endIdx
+                    index < playInfo.rangeInfo.endIdx
                     : false;
                   return (
                     <tr
@@ -389,9 +408,8 @@ export default function Home() {
                       }}
                     >
                       <td
-                        className={`p-0 text-center ${
-                          betweenRange ? "border-l-2 border-blue-500" : ""
-                        }`}
+                        className={`p-0 text-center ${betweenRange ? "border-l-2 border-blue-500" : ""
+                          }`}
                       >
                         {index + 1}
                       </td>
