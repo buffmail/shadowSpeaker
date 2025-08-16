@@ -106,6 +106,7 @@ export default function Home() {
   const playCtxRef = useRef<PlayContext | undefined>(undefined);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [segIndex, setSegIndex] = useState<number>(0);
+  const [scenes, setScenes] = useState<number>(0);
 
   useEffect(() => {
     const audioContext = new AudioContext();
@@ -176,7 +177,7 @@ export default function Home() {
           };
         });
       setSegments(segments);
-
+      setScenes(sceneIdx);
       setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
     })();
   }, []);
@@ -246,7 +247,7 @@ export default function Home() {
         abSrcNode.start();
       }
       const rangeStr = rangeInfo
-        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}]`
+        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${sceneIdx + 1}/${scenes}]`
         : "";
       setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
     } catch (error) {
