@@ -6,7 +6,7 @@ import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
-const SCENE_TAG = /$\[SCENE] /
+const SCENE_TAG = /^\[SCENE] /
 
 const loadPlayIndex = () => {
   if (window.localStorage) {
@@ -141,6 +141,7 @@ export default function Home() {
         .map((elem) => {
           const { startSeconds, endSeconds, text } = elem;
 
+          const revisedText = text.replace(SCENE_TAG, "");
           if (SCENE_TAG.test(text)) {
             ++sceneIdx
           }
@@ -148,7 +149,7 @@ export default function Home() {
           return ({
             startMsec: Math.round(startSeconds * 1000),
             endMsec: Math.round(endSeconds * 1000),
-            text,
+            text: revisedText,
             sceneIdx,
           })
         })
