@@ -162,7 +162,7 @@ export default function Home() {
           const nextGapMsec =
             nextElem === undefined ? 0 : nextElem.startMsec - elem.endMsec;
 
-          const MAX_GAP_MSEC = 400;
+          const MAX_GAP_MSEC = 200;
           const startMsec =
             elem.startMsec - Math.min(MAX_GAP_MSEC, prevGapMsec / 2);
           const endMsec =
