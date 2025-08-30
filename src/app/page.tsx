@@ -56,11 +56,17 @@ interface Segment {
   sceneIdx: number;
 }
 
+interface RangeInfo {
+  type: "scene" | "selected";
+  beginIdx: number;
+  endIdx: number;
+}
+
 interface PlayContext {
   audioContext: AudioContext;
   audioSample: AudioSample;
   playInfo?: {
-    rangeInfo?: { beginIdx: number; endIdx: number };
+    rangeInfo?: RangeInfo;
     abSrcNode: AudioBufferSourceNode;
     stopListener?: () => void;
   };
@@ -107,6 +113,8 @@ export default function Home() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [segIndex, setSegIndex] = useState<number>(0);
   const [scenes, setScenes] = useState<number>(0);
+  const [selectionMode, setSelectionMode] = useState<boolean>(false);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const audioContext = new AudioContext();
@@ -182,7 +190,11 @@ export default function Home() {
     })();
   }, []);
 
-  const playAudioSegment = async (index: number, loop: boolean) => {
+  const playAudioSegment = async (
+    index: number,
+    singleEntryLoop: boolean,
+    initRangeInfo?: RangeInfo
+  ) => {
     try {
       const playContext = playCtxRef.current;
       if (!playContext) return;
@@ -212,12 +224,12 @@ export default function Home() {
 
       abSrcNode.buffer = segmentBuffer; // Use the smaller segment buffer
       abSrcNode.connect(audioContext.destination);
-      abSrcNode.loop = loop;
+      abSrcNode.loop = singleEntryLoop;
 
       let stopListener: undefined | (() => void) = undefined;
-      let rangeInfo: undefined | { beginIdx: number; endIdx: number } =
-        undefined;
-      if (loop === false) {
+      let rangeInfo: RangeInfo | undefined = undefined;
+
+      if (singleEntryLoop === false) {
         const sceneBeginIdx = segments.findIndex(
           (elem) => elem.sceneIdx === sceneIdx
         );
@@ -226,26 +238,30 @@ export default function Home() {
         );
         const newBeginIdx = sceneBeginIdx === -1 ? index : sceneBeginIdx;
         const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
-        rangeInfo = prevRangeInfo
+        rangeInfo = initRangeInfo
+          ? initRangeInfo
+          : prevRangeInfo
           ? prevRangeInfo
-          : { beginIdx: newBeginIdx, endIdx: newEndIdx };
+          : { beginIdx: newBeginIdx, endIdx: newEndIdx, type: "scene" };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
           nextIndex = rangeInfo.beginIdx;
         }
         stopListener = () => {
-          playAudioSegment(nextIndex, loop);
+          playAudioSegment(nextIndex, singleEntryLoop);
         };
         abSrcNode.addEventListener("ended", stopListener);
       }
 
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
-      const playBeep = loop === false && index === rangeInfo?.beginIdx;
+      const playBeep =
+        rangeInfo && rangeInfo.type === "scene" && rangeInfo.beginIdx === index;
       if (playBeep) {
         beep(audioContext, () => abSrcNode.start());
       } else {
         abSrcNode.start();
       }
+
       const rangeStr = rangeInfo
         ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
             sceneIdx + 1
@@ -256,6 +272,41 @@ export default function Home() {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
     }
+  };
+
+  const toggleSelection = (index: number) => {
+    if (!selectionMode) return;
+
+    setSelectedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  const playSelectedItems = async () => {
+    if (selectedItems.size === 0) return;
+
+    const selectedArray = Array.from(selectedItems).sort((a, b) => a - b);
+    setSelectionMode(false);
+    setSelectedItems(new Set());
+
+    const initRangeInfo: RangeInfo = {
+      beginIdx: selectedArray[0],
+      endIdx: selectedArray[selectedArray.length - 1] + 1,
+      type: "selected",
+    };
+
+    await playAudioSegment(selectedArray[0], false, initRangeInfo);
+  };
+
+  const cancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedItems(new Set());
   };
 
   const handleFileSelect = async (input: "audio" | "srt") => {
@@ -336,23 +387,42 @@ export default function Home() {
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4">
           {isLoaded && (
             <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  if (playInfo) {
-                    stopPlayback(playCtx);
-                    setStatus(status + " stopped");
-                  } else {
-                    playAudioSegment(segIndex, false);
-                  }
-                }}
-                className={`cursor-pointer ${
-                  playInfo
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-green-500 hover:bg-green-600"
-                } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
-              >
-                {playInfo ? "Stop" : "Play"}
-              </button>
+              {selectionMode ? (
+                <>
+                  <button
+                    onClick={playSelectedItems}
+                    className="cursor-pointer bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Play Selected ({selectedItems.size})
+                  </button>
+                  <button
+                    onClick={cancelSelection}
+                    className="cursor-pointer bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      if (playInfo) {
+                        stopPlayback(playCtx);
+                        setStatus(status + " stopped");
+                      } else {
+                        playAudioSegment(segIndex, false);
+                      }
+                    }}
+                    className={`cursor-pointer ${
+                      playInfo
+                        ? "bg-red-500 hover:bg-red-600"
+                        : "bg-green-500 hover:bg-green-600"
+                    } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
+                  >
+                    {playInfo ? "Stop" : "Play"}
+                  </button>
+                </>
+              )}
             </div>
           )}
           <p
@@ -364,6 +434,11 @@ export default function Home() {
             className="text-lg sm:text-2xl text-gray-600 dark:text-gray-400 text-center"
           >
             {status}
+            {selectionMode && (
+              <span className="block text-sm text-blue-500 mt-1">
+                Selection Mode: {selectedItems.size} item(s) selected
+              </span>
+            )}
           </p>
           {isLoaded && (
             <div className="flex gap-4 sm:gap-8 w-full justify-center">
@@ -417,7 +492,16 @@ export default function Home() {
                           betweenRange ? "border-l-2 border-blue-500" : ""
                         }`}
                       >
-                        {index + 1}
+                        {selectionMode ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(index)}
+                            onChange={() => toggleSelection(index)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        ) : (
+                          index + 1
+                        )}
                       </td>
                       <td className="p-1 sm:p-2 break-words min-w-0 select-text">
                         {segment.text}
@@ -425,9 +509,32 @@ export default function Home() {
                       <td className="p-1 sm:p-2 select-none">
                         <button
                           className="bg-blue-500 text-white px-2 py-1 rounded text-sm select-none"
-                          onClick={() => playAudioSegment(index, true)}
+                          onClick={() => {
+                            if (selectionMode) {
+                              cancelSelection();
+                            } else {
+                              playAudioSegment(index, true);
+                            }
+                          }}
+                          onPointerDown={(e) => {
+                            if (selectionMode) return;
+                            e.persist?.();
+                            const timeoutId = setTimeout(() => {
+                              if (!selectionMode) {
+                                setSelectionMode(true);
+                                setSelectedItems(new Set([index]));
+                              }
+                            }, 500);
+                            const clear = () => clearTimeout(timeoutId);
+                            e.target.addEventListener("pointerup", clear, {
+                              once: true,
+                            });
+                            e.target.addEventListener("pointerleave", clear, {
+                              once: true,
+                            });
+                          }}
                         >
-                          Play
+                          {selectionMode ? "Cancel" : "Play"}
                         </button>
                       </td>
                     </tr>
