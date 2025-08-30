@@ -159,15 +159,15 @@ export default function Home() {
           const nextElem = all[idx + 1];
 
           const prevGapMsec =
-            prevElem === undefined ? 0 : elem.endMsec - prevElem.startMsec;
+            prevElem === undefined ? 0 : elem.startMsec - prevElem.endMsec;
           const nextGapMsec =
             nextElem === undefined ? 0 : nextElem.startMsec - elem.endMsec;
 
-          const MAX_GAP_MSEC = 200;
+          const MAX_GAP_MSEC = 400;
           const startMsec =
             elem.startMsec - Math.min(MAX_GAP_MSEC, prevGapMsec / 2);
           const endMsec =
-            elem.endMsec - Math.min(MAX_GAP_MSEC, nextGapMsec / 2);
+            elem.endMsec + Math.min(MAX_GAP_MSEC, nextGapMsec / 2);
 
           return {
             startTime: startMsec / 1000,
