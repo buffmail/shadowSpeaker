@@ -6,7 +6,7 @@ import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
-const SCENE_TAG = /^\[SCENE] /
+const SCENE_TAG = /^\[SCENE] /;
 
 const loadPlayIndex = () => {
   if (window.localStorage) {
@@ -144,15 +144,15 @@ export default function Home() {
 
           const revisedText = text.replace(SCENE_TAG, "");
           if (SCENE_TAG.test(text)) {
-            ++sceneIdx
+            ++sceneIdx;
           }
 
-          return ({
+          return {
             startMsec: Math.round(startSeconds * 1000),
             endMsec: Math.round(endSeconds * 1000),
             text: revisedText,
             sceneIdx,
-          })
+          };
         })
         .map((elem, idx, all) => {
           const prevElem = all[idx - 1];
@@ -228,7 +228,7 @@ export default function Home() {
         const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
         rangeInfo = prevRangeInfo
           ? prevRangeInfo
-          : { beginIdx: newBeginIdx, endIdx: newEndIdx, };
+          : { beginIdx: newBeginIdx, endIdx: newEndIdx };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
           nextIndex = rangeInfo.beginIdx;
@@ -247,7 +247,9 @@ export default function Home() {
         abSrcNode.start();
       }
       const rangeStr = rangeInfo
-        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${sceneIdx + 1}/${scenes}]`
+        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
+            sceneIdx + 1
+          }/${scenes}]`
         : "";
       setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
     } catch (error) {
@@ -262,22 +264,22 @@ export default function Home() {
         types:
           input === "audio"
             ? [
-              {
-                description: "Audio Files",
-                accept: { "audio/*": [".mp3", ".wav", ".m4a", ".ogg"] },
-              },
-            ]
-            : [
-              {
-                description: "Subtitle Files",
-                accept: {
-                  "text/plain": [".srt"],
-                  "application/x-subrip": [".srt"],
-                  "text/srt": [".srt"],
-                  "application/srt": [".srt"]
+                {
+                  description: "Audio Files",
+                  accept: { "audio/*": [".mp3", ".wav", ".m4a", ".ogg"] },
                 },
-              },
-            ],
+              ]
+            : [
+                {
+                  description: "Subtitle Files",
+                  accept: {
+                    "text/plain": [".srt"],
+                    "application/x-subrip": [".srt"],
+                    "text/srt": [".srt"],
+                    "application/srt": [".srt"],
+                  },
+                },
+              ],
       });
 
       const file = await fileHandle.getFile();
@@ -314,24 +316,24 @@ export default function Home() {
   const isLoaded = audioSample.isLoaded();
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4 p-8">
-        <div className="flex gap-4">
+    <main className="min-h-screen flex items-center justify-center p-4 sm:p-8">
+      <div className="flex flex-col items-center gap-4 w-full max-w-6xl">
+        <div className="flex flex-col sm:flex-row gap-4 w-full">
           <button
             onClick={() => handleFileSelect("audio")}
-            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors flex-1 sm:flex-none"
           >
             Select Audio File
           </button>
           <button
             onClick={() => handleFileSelect("srt")}
-            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors flex-1 sm:flex-none"
           >
             Select SRT File
           </button>
         </div>
 
-        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 p-8">
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 px-4 sm:px-8">
           {isLoaded && (
             <div className="flex gap-4">
               <button
@@ -343,10 +345,11 @@ export default function Home() {
                     playAudioSegment(segIndex, false);
                   }
                 }}
-                className={`cursor-pointer ${playInfo
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-green-500 hover:bg-green-600"
-                  } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
+                className={`cursor-pointer ${
+                  playInfo
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-green-500 hover:bg-green-600"
+                } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
               >
                 {playInfo ? "Stop" : "Play"}
               </button>
@@ -358,17 +361,17 @@ export default function Home() {
                 .getElementById(getRowId(segIndex))
                 ?.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
-            className="text-2xl text-gray-600 dark:text-gray-400"
+            className="text-lg sm:text-2xl text-gray-600 dark:text-gray-400 text-center"
           >
             {status}
           </p>
           {isLoaded && (
-            <div className="flex gap-8">
+            <div className="flex gap-4 sm:gap-8 w-full justify-center">
               <div
                 onClick={() =>
                   segIndex > 0 && playAudioSegment(segIndex - 1, true)
                 }
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-4 rounded-2xl font-medium transition-colors text-6xl border-2 border-blue-500 text-white"
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
               >
                 Prev
               </div>
@@ -377,7 +380,7 @@ export default function Home() {
                   segIndex < segments.length - 1 &&
                   playAudioSegment(segIndex + 1, true)
                 }
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-4 rounded-2xl font-medium transition-colors text-6xl border-2 border-blue-500 text-white"
+                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
               >
                 Next
               </div>
@@ -385,20 +388,20 @@ export default function Home() {
           )}
         </div>
         {segments.length > 0 && (
-          <div className="mt-4 max-w-[90%]">
-            <table>
+          <div className="mt-4 w-full overflow-x-auto">
+            <table className="w-full">
               <thead>
                 <tr className="bg-gray-800">
-                  <th className="p-2 w-16">No.</th>
+                  <th className="p-2 w-12 sm:w-16">No.</th>
                   <th className="p-2 min-w-0 text-left">Text</th>
-                  <th className="p-2 w-24"></th>
+                  <th className="p-2 w-16 sm:w-24"></th>
                 </tr>
               </thead>
               <tbody>
                 {segments.map((segment, index) => {
                   const betweenRange = playInfo?.rangeInfo
                     ? playInfo.rangeInfo.beginIdx <= index &&
-                    index < playInfo.rangeInfo.endIdx
+                      index < playInfo.rangeInfo.endIdx
                     : false;
                   return (
                     <tr
@@ -410,17 +413,18 @@ export default function Home() {
                       }}
                     >
                       <td
-                        className={`p-0 text-center ${betweenRange ? "border-l-2 border-blue-500" : ""
-                          }`}
+                        className={`p-1 sm:p-2 text-center ${
+                          betweenRange ? "border-l-2 border-blue-500" : ""
+                        }`}
                       >
                         {index + 1}
                       </td>
-                      <td className="p-0 break-words min-w-0">
+                      <td className="p-1 sm:p-2 break-words min-w-0">
                         {segment.text}
                       </td>
-                      <td className="p-0">
+                      <td className="p-1 sm:p-2">
                         <button
-                          className="bg-blue-500 text-white px-0 py-0 rounded"
+                          className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
                           onClick={() => playAudioSegment(index, true)}
                         >
                           Play
