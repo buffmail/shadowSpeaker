@@ -316,8 +316,8 @@ export default function Home() {
   const isLoaded = audioSample.isLoaded();
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 sm:p-8">
-      <div className="flex flex-col items-center gap-4 w-full max-w-6xl">
+    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8">
+      <div className="flex flex-col items-center gap-4 w-full">
         <div className="flex flex-col sm:flex-row gap-4 w-full">
           <button
             onClick={() => handleFileSelect("audio")}
@@ -333,7 +333,7 @@ export default function Home() {
           </button>
         </div>
 
-        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4 px-4 sm:px-8">
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4">
           {isLoaded && (
             <div className="flex gap-4">
               <button
@@ -392,9 +392,9 @@ export default function Home() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-800">
-                  <th className="p-2 w-12 sm:w-16">No.</th>
-                  <th className="p-2 min-w-0 text-left">Text</th>
-                  <th className="p-2 w-16 sm:w-24"></th>
+                  <th className="p-2 w-12 sm:w-16 select-none">No.</th>
+                  <th className="p-2 min-w-0 text-left select-none">Text</th>
+                  <th className="p-2 w-16 sm:w-24 select-none"></th>
                 </tr>
               </thead>
               <tbody>
@@ -413,18 +413,18 @@ export default function Home() {
                       }}
                     >
                       <td
-                        className={`p-1 sm:p-2 text-center ${
+                        className={`p-1 sm:p-2 text-center select-none ${
                           betweenRange ? "border-l-2 border-blue-500" : ""
                         }`}
                       >
                         {index + 1}
                       </td>
-                      <td className="p-1 sm:p-2 break-words min-w-0">
+                      <td className="p-1 sm:p-2 break-words min-w-0 select-text">
                         {segment.text}
                       </td>
-                      <td className="p-1 sm:p-2">
+                      <td className="p-1 sm:p-2 select-none">
                         <button
-                          className="bg-blue-500 text-white px-2 py-1 rounded text-sm"
+                          className="bg-blue-500 text-white px-2 py-1 rounded text-sm select-none"
                           onClick={() => playAudioSegment(index, true)}
                         >
                           Play
