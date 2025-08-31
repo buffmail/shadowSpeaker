@@ -219,3 +219,63 @@ function floatTo16BitPCM(input: Float32Array<ArrayBufferLike>) {
   }
   return output;
 }
+
+export const makeSilentWav = (durationMs: number) => {
+  const sampleRate = 44100;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+
+  const numSamples = Math.floor((durationMs / 1000) * sampleRate);
+  const blockAlign = (numChannels * bitsPerSample) >> 3;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = numSamples * blockAlign;
+
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  let p = 0;
+  function wrStr(s: string) {
+    for (let i = 0; i < s.length; i++) view.setUint8(p++, s.charCodeAt(i));
+  }
+  function wr32(v: number) {
+    view.setUint32(p, v, true);
+    p += 4;
+  }
+  function wr16(v: number) {
+    view.setUint16(p, v, true);
+    p += 2;
+  }
+
+  // WAV header
+  wrStr("RIFF");
+  wr32(36 + dataSize);
+  wrStr("WAVE");
+  wrStr("fmt ");
+  wr32(16);
+  wr16(1);
+  wr16(numChannels);
+  wr32(sampleRate);
+  wr32(byteRate);
+  wr16(blockAlign);
+  wr16(bitsPerSample);
+  wrStr("data");
+  wr32(dataSize);
+
+  // PCM data = all zeros (silence)
+  for (let i = 0; i < numSamples; i++) {
+    view.setInt16(p, 0, true);
+    p += 2;
+  }
+
+  // Convert to base64 data URL
+  const u8 = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    binary += String.fromCharCode.apply(
+      null,
+      Array.from(u8.subarray(i, i + chunk))
+    );
+  }
+  return `data:audio/wav;base64,${btoa(binary)}`;
+};

@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
 import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
-import { AudioSample, splitMp3Segments } from "./util/sample";
+import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
 const SCENE_TAG = /^\[SCENE] /;
 
 const loadPlayIndex = () => {
-  if (window.localStorage) {
+  if (window?.localStorage) {
     const idxStr = window.localStorage.getItem(LS_INDEX);
     if (!idxStr) return 0;
     return parseInt(idxStr);
@@ -20,7 +20,7 @@ const loadPlayIndex = () => {
 const getRowId = (index: number) => `id-${index}`;
 
 const savePlayIndex = (index: number) => {
-  if (window.localStorage) {
+  if (window?.localStorage) {
     window.localStorage.setItem(LS_INDEX, index.toString());
   }
 };
@@ -83,6 +83,16 @@ const stopPlayback = (playContext: PlayContext) => {
   }
   playInfo.abSrcNode.stop();
   playContext.playInfo = undefined;
+
+  if (navigator?.mediaSession) {
+    navigator.mediaSession.playbackState = "paused";
+
+    navigator.mediaSession.setPositionState({
+      duration: 0,
+      playbackRate: 1,
+      position: 0,
+    });
+  }
 };
 
 const beep = (audioContext: AudioContext, onEnd: () => void) => {
@@ -115,6 +125,11 @@ export default function Home() {
   const [scenes, setScenes] = useState<number>(0);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const segLengthRef = useRef<number>(0);
+  const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
+    undefined
+  );
+  const dummyAudioRef = useRef<HTMLAudioElement | undefined>(undefined);
 
   useEffect(() => {
     const audioContext = new AudioContext();
@@ -122,8 +137,38 @@ export default function Home() {
     const playContext: PlayContext = { audioContext, audioSample };
     playCtxRef.current = playContext;
 
+    const dummyAudio = document.createElement("audio");
+    const silenceWavBase64 = makeSilentWav(6000);
+    dummyAudio.src = silenceWavBase64;
+    dummyAudio.loop = true;
+    dummyAudioRef.current = dummyAudio;
+
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
+
+    if (navigator?.mediaSession) {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: "ShadowSpeaker",
+        artist: "",
+      });
+
+      navigator.mediaSession.setPositionState({
+        duration: 0,
+        playbackRate: 1,
+        position: 0,
+      });
+
+      navigator.mediaSession.playbackState = "paused";
+
+      navigator.mediaSession.setActionHandler("pause", () => {
+        setStatus("Paused by headset/media key");
+        stopPlayback(playContext);
+        dummyAudioRef.current?.pause();
+      });
+      navigator.mediaSession.setActionHandler("play", () => {
+        playAudioSegmentRef.current?.(loadPlayIndex(), false);
+      });
+    }
 
     (async () => {
       const loaded = await audioSample.initSample(setStatus);
@@ -185,9 +230,16 @@ export default function Home() {
           };
         });
       setSegments(segments);
+      segLengthRef.current = segments.length;
       setScenes(sceneIdx);
       setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
     })();
+
+    return () => {
+      navigator?.mediaSession?.setActionHandler("play", null);
+      navigator?.mediaSession?.setActionHandler("pause", null);
+      audioContext.close();
+    };
   }, []);
 
   const playAudioSegment = async (
@@ -222,7 +274,7 @@ export default function Home() {
         durationSec
       );
 
-      abSrcNode.buffer = segmentBuffer; // Use the smaller segment buffer
+      abSrcNode.buffer = segmentBuffer;
       abSrcNode.connect(audioContext.destination);
       abSrcNode.loop = singleEntryLoop;
 
@@ -254,6 +306,21 @@ export default function Home() {
       }
 
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
+
+      if (navigator?.mediaSession) {
+        navigator.mediaSession.setPositionState({
+          duration: durationSec,
+          playbackRate: 1,
+          position: 0,
+        });
+
+        navigator.mediaSession.playbackState = "playing";
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: segment.text,
+          artist: `Segment ${index + 1} / ${segments.length}`,
+        });
+      }
+
       const playBeep =
         rangeInfo && rangeInfo.type === "scene" && rangeInfo.beginIdx === index;
       if (playBeep) {
@@ -261,6 +328,7 @@ export default function Home() {
       } else {
         abSrcNode.start();
       }
+      dummyAudioRef.current?.play();
 
       const rangeStr = rangeInfo
         ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
@@ -279,6 +347,7 @@ export default function Home() {
       setStatus("Error playing audio segment");
     }
   };
+  playAudioSegmentRef.current = playAudioSegment;
 
   const toggleSelection = (index: number) => {
     if (!selectionMode) return;
@@ -411,11 +480,15 @@ export default function Home() {
               ) : (
                 <>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (playInfo) {
                         stopPlayback(playCtx);
                         setStatus(status + " stopped");
                       } else {
+                        // CRITICAL: Resume AudioContext before playing
+                        if (playCtx.audioContext.state === "suspended") {
+                          await playCtx.audioContext.resume();
+                        }
                         playAudioSegment(segIndex, false);
                       }
                     }}
