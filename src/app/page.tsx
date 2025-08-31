@@ -268,6 +268,10 @@ export default function Home() {
           }/${scenes}]`
         : "";
       setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
+
+      document
+        .getElementById(getRowId(index))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
@@ -425,14 +429,7 @@ export default function Home() {
               )}
             </div>
           )}
-          <p
-            onClick={() => {
-              document
-                .getElementById(getRowId(segIndex))
-                ?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
-            className="text-lg sm:text-2xl text-gray-600 dark:text-gray-400 text-center"
-          >
+          <p className="text-lg sm:text-2xl text-gray-600 dark:text-gray-400 text-center">
             {status}
             {selectionMode && (
               <span className="block text-sm text-blue-500 mt-1">
@@ -478,6 +475,8 @@ export default function Home() {
                     ? playInfo.rangeInfo.beginIdx <= index &&
                       index < playInfo.rangeInfo.endIdx
                     : false;
+                  const isNewScene =
+                    segment.sceneIdx !== segments[index - 1]?.sceneIdx;
                   return (
                     <tr
                       key={index}
@@ -485,6 +484,7 @@ export default function Home() {
                       style={{
                         backgroundColor:
                           index === segIndex ? "#4B5563" : "transparent",
+                        borderTop: isNewScene ? "3px solid #3B82F6" : undefined,
                       }}
                     >
                       <td
@@ -508,14 +508,12 @@ export default function Home() {
                       </td>
                       <td className="p-1 sm:p-2 select-none">
                         <button
-                          className="bg-blue-500 text-white px-2 py-1 rounded text-sm select-none"
-                          onClick={() => {
-                            if (selectionMode) {
-                              cancelSelection();
-                            } else {
-                              playAudioSegment(index, true);
-                            }
-                          }}
+                          className={`px-2 py-1 rounded text-sm select-none ${
+                            selectionMode
+                              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                              : "bg-blue-500 text-white"
+                          }`}
+                          onClick={() => playAudioSegment(index, true)}
                           onPointerDown={(e) => {
                             if (selectionMode) return;
                             e.persist?.();
@@ -533,8 +531,9 @@ export default function Home() {
                               once: true,
                             });
                           }}
+                          disabled={selectionMode}
                         >
-                          {selectionMode ? "Cancel" : "Play"}
+                          Play
                         </button>
                       </td>
                     </tr>
