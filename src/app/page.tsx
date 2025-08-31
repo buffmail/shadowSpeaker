@@ -269,9 +269,11 @@ export default function Home() {
         : "";
       setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
 
-      document
-        .getElementById(getRowId(index))
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (rangeInfo?.type !== "selected") {
+        document
+          .getElementById(getRowId(index))
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
