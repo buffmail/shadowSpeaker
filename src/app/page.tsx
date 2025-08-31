@@ -9,7 +9,7 @@ const LS_INDEX = "lastPlayIndex";
 const SCENE_TAG = /^\[SCENE] /;
 
 const loadPlayIndex = () => {
-  if (window.localStorage) {
+  if (window?.localStorage) {
     const idxStr = window.localStorage.getItem(LS_INDEX);
     if (!idxStr) return 0;
     return parseInt(idxStr);
@@ -20,7 +20,7 @@ const loadPlayIndex = () => {
 const getRowId = (index: number) => `id-${index}`;
 
 const savePlayIndex = (index: number) => {
-  if (window.localStorage) {
+  if (window?.localStorage) {
     window.localStorage.setItem(LS_INDEX, index.toString());
   }
 };
@@ -83,6 +83,10 @@ const stopPlayback = (playContext: PlayContext) => {
   }
   playInfo.abSrcNode.stop();
   playContext.playInfo = undefined;
+
+  if (navigator?.mediaSession) {
+    navigator.mediaSession.playbackState = "paused";
+  }
 };
 
 const beep = (audioContext: AudioContext, onEnd: () => void) => {
@@ -115,6 +119,10 @@ export default function Home() {
   const [scenes, setScenes] = useState<number>(0);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const segLengthRef = useRef<number>(0);
+  const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     const audioContext = new AudioContext();
@@ -124,6 +132,35 @@ export default function Home() {
 
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
+
+    const initMediaSession = async () => {
+      if (navigator && navigator.mediaSession) {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: "Ozark",
+          artist: "Audio Player",
+          album: "Interactive Audio Segments",
+          artwork: [{ src: "/favicon.ico", sizes: "32x32", type: "image/png" }],
+        });
+
+        navigator.mediaSession.setPositionState({
+          duration: 0,
+          playbackRate: 1,
+          position: 0,
+        });
+
+        //window.console.log("set action handler");
+        navigator.mediaSession.setActionHandler("pause", () => {
+          setStatus("Paused by headset/media key");
+          stopPlayback(playContext);
+        });
+        navigator.mediaSession.setActionHandler("play", () => {
+          window?.console.log("called play");
+          playAudioSegmentRef.current?.(loadPlayIndex(), false);
+        });
+      }
+    };
+
+    initMediaSession();
 
     (async () => {
       const loaded = await audioSample.initSample(setStatus);
@@ -185,9 +222,18 @@ export default function Home() {
           };
         });
       setSegments(segments);
+      segLengthRef.current = segments.length;
       setScenes(sceneIdx);
       setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
     })();
+
+    return () => {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("pause", null);
+      }
+      audioContext.close();
+    };
   }, []);
 
   const playAudioSegment = async (
@@ -222,7 +268,7 @@ export default function Home() {
         durationSec
       );
 
-      abSrcNode.buffer = segmentBuffer; // Use the smaller segment buffer
+      abSrcNode.buffer = segmentBuffer;
       abSrcNode.connect(audioContext.destination);
       abSrcNode.loop = singleEntryLoop;
 
@@ -254,6 +300,25 @@ export default function Home() {
       }
 
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
+
+      if (navigator?.mediaSession) {
+        navigator.mediaSession.setPositionState({
+          duration: durationSec,
+          playbackRate: 1,
+          position: 0,
+        });
+
+        navigator.mediaSession.playbackState = "playing";
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: `Segment ${index + 1}`,
+          artist:
+            segment.text.substring(0, 50) +
+            (segment.text.length > 50 ? "..." : ""),
+          album: `Ozark - ${segments.length} segments`,
+          artwork: [{ src: "/favicon.ico", sizes: "32x32", type: "image/png" }],
+        });
+      }
+
       const playBeep =
         rangeInfo && rangeInfo.type === "scene" && rangeInfo.beginIdx === index;
       if (playBeep) {
@@ -279,6 +344,7 @@ export default function Home() {
       setStatus("Error playing audio segment");
     }
   };
+  playAudioSegmentRef.current = playAudioSegment;
 
   const toggleSelection = (index: number) => {
     if (!selectionMode) return;
@@ -411,7 +477,7 @@ export default function Home() {
               ) : (
                 <>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (playInfo) {
                         stopPlayback(playCtx);
                         setStatus(status + " stopped");
