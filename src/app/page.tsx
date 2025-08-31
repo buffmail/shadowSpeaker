@@ -510,7 +510,7 @@ export default function Home() {
                       </td>
                       <td className="p-1 sm:p-2 select-none">
                         <button
-                          className={`px-2 py-1 rounded text-sm select-none ${
+                          className={`px-1.5 py-0.5 rounded text-xs select-none flex items-center justify-center ${
                             selectionMode
                               ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                               : "bg-blue-500 text-white"
@@ -534,8 +534,18 @@ export default function Home() {
                             });
                           }}
                           disabled={selectionMode}
+                          aria-label="Play"
                         >
-                          Play
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="13"
+                            height="13"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="inline-block"
+                          >
+                            <polygon points="5,3 17,10 5,17" />
+                          </svg>
                         </button>
                       </td>
                     </tr>
