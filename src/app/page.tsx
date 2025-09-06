@@ -134,7 +134,7 @@ export default function Home() {
     setSegIndex(lastIdx);
 
     const initMediaSession = async () => {
-      if (navigator && navigator.mediaSession) {
+      if (navigator?.mediaSession) {
         navigator.mediaSession.metadata = new window.MediaMetadata({
           title: "Ozark",
           artist: "Audio Player",
@@ -228,10 +228,8 @@ export default function Home() {
     })();
 
     return () => {
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.setActionHandler("play", null);
-        navigator.mediaSession.setActionHandler("pause", null);
-      }
+      navigator?.mediaSession?.setActionHandler("play", null);
+      navigator?.mediaSession?.setActionHandler("pause", null);
       audioContext.close();
     };
   }, []);
