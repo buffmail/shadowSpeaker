@@ -146,7 +146,6 @@ export default function Home() {
           await audioContext.resume();
         }
 
-        window?.alert("mediaSession initialize start");
         navigator.mediaSession.metadata = new window.MediaMetadata({
           title: "Ozark",
           artist: "Audio Player",
@@ -164,16 +163,12 @@ export default function Home() {
         navigator.mediaSession.playbackState = "paused";
 
         navigator.mediaSession.setActionHandler("pause", () => {
-          window?.alert("mediaSession pause called");
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
         });
         navigator.mediaSession.setActionHandler("play", () => {
-          window?.alert("mediaSession play called");
           playAudioSegmentRef.current?.(loadPlayIndex(), false);
         });
-
-        window?.alert("mediaSession initialized");
       }
     };
 
@@ -319,22 +314,18 @@ export default function Home() {
       if (navigator?.mediaSession) {
         // CRITICAL: Re-register action handlers during playback for proper context
         navigator.mediaSession.setActionHandler("pause", () => {
-          window?.alert("mediaSession pause called during playback");
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
         });
         navigator.mediaSession.setActionHandler("play", () => {
-          window?.alert("mediaSession play called during playback");
           playAudioSegmentRef.current?.(index, false);
         });
         navigator.mediaSession.setActionHandler("previoustrack", () => {
-          window?.alert("mediaSession previous called");
           if (index > 0) {
             playAudioSegmentRef.current?.(index - 1, false);
           }
         });
         navigator.mediaSession.setActionHandler("nexttrack", () => {
-          window?.alert("mediaSession next called");
           if (index < segments.length - 1) {
             playAudioSegmentRef.current?.(index + 1, false);
           }
@@ -355,7 +346,6 @@ export default function Home() {
           album: `Ozark - ${segments.length} segments`,
           artwork: [{ src: "/favicon.ico", sizes: "32x32", type: "image/png" }],
         });
-        window?.alert("mediaSession setPosition & metadata called");
       }
 
       const playBeep =
@@ -551,9 +541,6 @@ export default function Home() {
                         platform: navigator.platform,
                       };
                       console.log("Media Session Debug Info:", debugInfo);
-                      window?.alert(
-                        `Debug Info:\nMediaSession: ${debugInfo.mediaSession}\nPlaybackState: ${debugInfo.playbackState}\nAudioContext: ${debugInfo.audioContextState}\nPlayInfo: ${debugInfo.playInfo}\nIndex: ${debugInfo.currentIndex}/${debugInfo.segmentsLength}`
-                      );
                     }}
                     className="cursor-pointer bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
                   >
