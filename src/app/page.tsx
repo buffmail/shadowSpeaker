@@ -148,15 +148,15 @@ export default function Home() {
           position: 0,
         });
 
-        //window.console.log("set action handler");
         navigator.mediaSession.setActionHandler("pause", () => {
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
         });
         navigator.mediaSession.setActionHandler("play", () => {
-          window?.console.log("called play");
           playAudioSegmentRef.current?.(loadPlayIndex(), false);
         });
+
+        window?.alert("mediaSession initialized");
       }
     };
 
