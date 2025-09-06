@@ -135,6 +135,7 @@ export default function Home() {
 
     const initMediaSession = async () => {
       if (navigator?.mediaSession) {
+        window?.alert("mediaSession initialize start");
         navigator.mediaSession.metadata = new window.MediaMetadata({
           title: "Ozark",
           artist: "Audio Player",
