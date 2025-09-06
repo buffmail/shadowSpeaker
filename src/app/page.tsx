@@ -86,6 +86,12 @@ const stopPlayback = (playContext: PlayContext) => {
 
   if (navigator?.mediaSession) {
     navigator.mediaSession.playbackState = "paused";
+    // Clear position state when stopped
+    navigator.mediaSession.setPositionState({
+      duration: 0,
+      playbackRate: 1,
+      position: 0,
+    });
   }
 };
 
@@ -135,6 +141,11 @@ export default function Home() {
 
     const initMediaSession = async () => {
       if (navigator?.mediaSession) {
+        // CRITICAL: Resume AudioContext first - required for Media Session to work
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+
         window?.alert("mediaSession initialize start");
         navigator.mediaSession.metadata = new window.MediaMetadata({
           title: "Ozark",
@@ -148,6 +159,9 @@ export default function Home() {
           playbackRate: 1,
           position: 0,
         });
+
+        // Set initial playback state
+        navigator.mediaSession.playbackState = "paused";
 
         navigator.mediaSession.setActionHandler("pause", () => {
           window?.alert("mediaSession pause called");
@@ -303,6 +317,29 @@ export default function Home() {
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
 
       if (navigator?.mediaSession) {
+        // CRITICAL: Re-register action handlers during playback for proper context
+        navigator.mediaSession.setActionHandler("pause", () => {
+          window?.alert("mediaSession pause called during playback");
+          setStatus("Paused by headset/media key");
+          stopPlayback(playContext);
+        });
+        navigator.mediaSession.setActionHandler("play", () => {
+          window?.alert("mediaSession play called during playback");
+          playAudioSegmentRef.current?.(index, false);
+        });
+        navigator.mediaSession.setActionHandler("previoustrack", () => {
+          window?.alert("mediaSession previous called");
+          if (index > 0) {
+            playAudioSegmentRef.current?.(index - 1, false);
+          }
+        });
+        navigator.mediaSession.setActionHandler("nexttrack", () => {
+          window?.alert("mediaSession next called");
+          if (index < segments.length - 1) {
+            playAudioSegmentRef.current?.(index + 1, false);
+          }
+        });
+
         navigator.mediaSession.setPositionState({
           duration: durationSec,
           playbackRate: 1,
@@ -318,7 +355,7 @@ export default function Home() {
           album: `Ozark - ${segments.length} segments`,
           artwork: [{ src: "/favicon.ico", sizes: "32x32", type: "image/png" }],
         });
-        window?.alert("mediaSession setPosition & metaata called");
+        window?.alert("mediaSession setPosition & metadata called");
       }
 
       const playBeep =
@@ -484,6 +521,10 @@ export default function Home() {
                         stopPlayback(playCtx);
                         setStatus(status + " stopped");
                       } else {
+                        // CRITICAL: Resume AudioContext before playing
+                        if (playCtx.audioContext.state === "suspended") {
+                          await playCtx.audioContext.resume();
+                        }
                         playAudioSegment(segIndex, false);
                       }
                     }}
@@ -494,6 +535,29 @@ export default function Home() {
                     } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
                   >
                     {playInfo ? "Stop" : "Play"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const debugInfo = {
+                        mediaSession: !!navigator?.mediaSession,
+                        playbackState: navigator?.mediaSession?.playbackState,
+                        metadata: navigator?.mediaSession?.metadata,
+                        audioContextState: playCtx.audioContext.state,
+                        audioContextSampleRate: playCtx.audioContext.sampleRate,
+                        playInfo: !!playInfo,
+                        currentIndex: segIndex,
+                        segmentsLength: segments.length,
+                        userAgent: navigator.userAgent,
+                        platform: navigator.platform,
+                      };
+                      console.log("Media Session Debug Info:", debugInfo);
+                      window?.alert(
+                        `Debug Info:\nMediaSession: ${debugInfo.mediaSession}\nPlaybackState: ${debugInfo.playbackState}\nAudioContext: ${debugInfo.audioContextState}\nPlayInfo: ${debugInfo.playInfo}\nIndex: ${debugInfo.currentIndex}/${debugInfo.segmentsLength}`
+                      );
+                    }}
+                    className="cursor-pointer bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors text-sm"
+                  >
+                    Debug
                   </button>
                 </>
               )}
