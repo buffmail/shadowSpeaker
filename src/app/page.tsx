@@ -150,10 +150,12 @@ export default function Home() {
         });
 
         navigator.mediaSession.setActionHandler("pause", () => {
+          window?.alert("mediaSession pause called");
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
         });
         navigator.mediaSession.setActionHandler("play", () => {
+          window?.alert("mediaSession play called");
           playAudioSegmentRef.current?.(loadPlayIndex(), false);
         });
 
@@ -316,6 +318,7 @@ export default function Home() {
           album: `Ozark - ${segments.length} segments`,
           artwork: [{ src: "/favicon.ico", sizes: "32x32", type: "image/png" }],
         });
+        window?.alert("mediaSession setPosition & metaata called");
       }
 
       const playBeep =
