@@ -129,12 +129,20 @@ export default function Home() {
   const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
     undefined
   );
+  const dummyAudioRef = useRef<HTMLAudioElement | undefined>(undefined);
 
   useEffect(() => {
     const audioContext = new AudioContext();
     const audioSample = new AudioSample(audioContext, setStatus);
     const playContext: PlayContext = { audioContext, audioSample };
     playCtxRef.current = playContext;
+
+    const dummyAudio = document.createElement("audio");
+    const silenceWavBase64 =
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=";
+    dummyAudio.src = silenceWavBase64;
+    dummyAudio.loop = true;
+    dummyAudioRef.current = dummyAudio;
 
     const lastIdx = loadPlayIndex();
     setSegIndex(lastIdx);
@@ -165,6 +173,7 @@ export default function Home() {
         navigator.mediaSession.setActionHandler("pause", () => {
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
+          dummyAudioRef.current?.pause();
         });
         navigator.mediaSession.setActionHandler("play", () => {
           playAudioSegmentRef.current?.(loadPlayIndex(), false);
@@ -316,6 +325,7 @@ export default function Home() {
         navigator.mediaSession.setActionHandler("pause", () => {
           setStatus("Paused by headset/media key");
           stopPlayback(playContext);
+          dummyAudioRef.current?.pause();
         });
         navigator.mediaSession.setActionHandler("play", () => {
           playAudioSegmentRef.current?.(index, false);
@@ -355,6 +365,7 @@ export default function Home() {
       } else {
         abSrcNode.start();
       }
+      dummyAudioRef.current?.play();
 
       const rangeStr = rangeInfo
         ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
