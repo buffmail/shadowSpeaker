@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
-import { opfsClearAll, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
+import { opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 
 const LS_INDEX = "lastPlayIndex";
+const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
 
 const loadPlayIndex = () => {
@@ -17,12 +18,29 @@ const loadPlayIndex = () => {
   return 0;
 };
 
-const getRowId = (index: number) => `id-${index}`;
-
 const savePlayIndex = (index: number) => {
   if (window?.localStorage) {
     window.localStorage.setItem(LS_INDEX, index.toString());
   }
+};
+
+const loadLastProject = (): string | undefined => {
+  if (window?.localStorage) {
+    const projectStr = window.localStorage.getItem(LS_LAST_PROJECT);
+    if (!projectStr) return;
+    return projectStr;
+  }
+  return;
+};
+
+const saveLastProject = (project: string) => {
+  window?.localStorage.setItem(LS_LAST_PROJECT, project);
+};
+
+const getRowId = (index: number) => `id-${index}`;
+
+const getFileNameWithoutExt = (fileName: string) => {
+  return fileName.split(".")[0];
 };
 
 interface FilePickerAcceptType {
@@ -46,7 +64,6 @@ declare global {
   }
 }
 
-const OPFS_AUDIO_NAME = "audio.mp3";
 const OPFS_SRT_NAME = "transcript.srt";
 
 interface Segment {
@@ -130,6 +147,7 @@ export default function Home() {
     undefined
   );
   const dummyAudioRef = useRef<HTMLAudioElement | undefined>(undefined);
+  const project = loadLastProject() ?? "";
 
   useEffect(() => {
     const audioContext = new AudioContext();
@@ -171,18 +189,18 @@ export default function Home() {
     }
 
     (async () => {
-      const loaded = await audioSample.initSample(setStatus);
+      const loaded = await audioSample.initSample(setStatus, project);
       if (!loaded) {
         setStatus(`No sample found`);
         return;
       }
 
-      if (!(await opfsExist(OPFS_SRT_NAME))) {
+      if (!(await opfsExist(project, OPFS_SRT_NAME))) {
         setStatus(`No srt`);
         return;
       }
 
-      const srtContent = await opfsRead(OPFS_SRT_NAME);
+      const srtContent = await opfsRead(project, OPFS_SRT_NAME);
       const decoder = new TextDecoder();
       const srtString = decoder.decode(srtContent);
       setStatus("srt file found. setting.");
@@ -271,7 +289,8 @@ export default function Home() {
 
       const segmentBuffer = await audioSample.createSegmentBuffer(
         startSec,
-        durationSec
+        durationSec,
+        project
       );
 
       abSrcNode.buffer = segmentBuffer;
@@ -385,6 +404,9 @@ export default function Home() {
   };
 
   const handleFileSelect = async (input: "audio" | "srt") => {
+    if (!playCtx) {
+      return;
+    }
     try {
       const [fileHandle] = await window.showOpenFilePicker({
         types:
@@ -408,24 +430,25 @@ export default function Home() {
               ],
       });
 
+      const newProject =
+        input === "audio" ? getFileNameWithoutExt(fileHandle.name) : project;
+
       const file = await fileHandle.getFile();
-      if (input === "audio") {
-        await opfsClearAll("mp3");
+      if (input === "srt") {
+        await opfsWrite(newProject, OPFS_SRT_NAME, file);
+        window.location.reload();
+        return;
       }
-      await opfsWrite(
-        input === "audio" ? OPFS_AUDIO_NAME : OPFS_SRT_NAME,
-        file
+
+      setStatus(`decoding audio`);
+      const arrayBuffer = await file.arrayBuffer();
+      const audioBuffer = await playCtx.audioContext.decodeAudioData(
+        arrayBuffer
       );
 
-      if (input === "audio" && playCtx) {
-        setStatus(`decoding audio`);
-        const arrayBuffer = await opfsRead(OPFS_AUDIO_NAME);
-        const audioBuffer = await playCtx?.audioContext.decodeAudioData(
-          arrayBuffer
-        );
-
-        await splitMp3Segments(audioBuffer, setStatus);
-      }
+      await splitMp3Segments(audioBuffer, setStatus, newProject);
+      saveLastProject(newProject);
+      window.location.reload();
     } catch (error) {
       console.error("Error handling file:", error);
       setStatus(`Error processing ${input} file`);

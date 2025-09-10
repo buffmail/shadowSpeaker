@@ -24,17 +24,18 @@ export class AudioSample {
   }
 
   public initSample = async (
-    setStatus: (status: string) => void
+    setStatus: (status: string) => void,
+    project: string
   ): Promise<boolean> => {
     this.buffers = {};
 
     const firstSegmentName = `${AUDIO_SEGMENT_PREFIX}0.mp3`;
-    if (!(await opfsExist(firstSegmentName))) {
+    if (!(await opfsExist(project, firstSegmentName))) {
       setStatus(`Segment not found`);
       return false;
     }
 
-    const arrayBuffer = await opfsRead(firstSegmentName);
+    const arrayBuffer = await opfsRead(project, firstSegmentName);
     const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
     this.numOfChannels = audioBuffer.numberOfChannels;
     this.sampleRate = audioBuffer.sampleRate;
@@ -48,7 +49,8 @@ export class AudioSample {
 
   public createSegmentBuffer = async (
     startSec: number,
-    durationSec: number
+    durationSec: number,
+    project: string
   ): Promise<AudioBuffer> => {
     if (this.buffers[0] === undefined) {
       throw Error(`Not yet loaded`);
@@ -78,11 +80,10 @@ export class AudioSample {
       let writeOffset = 0;
       for (let bufIdx = startBufferIdx; bufIdx <= endBufferIdx; bufIdx++) {
         if (this.buffers[bufIdx] === undefined) {
-          const arrayBuffer = await opfsRead(getAudioFileName(bufIdx));
+          const arrayBuffer = await opfsRead(project, getAudioFileName(bufIdx));
           const audioBuffer = await this.audioContext.decodeAudioData(
             arrayBuffer
           );
-          window.console.log(`loading segment ${bufIdx}`);
           this.buffers[bufIdx] = Promise.resolve(audioBuffer);
         }
         const buffer = await this.buffers[bufIdx];
@@ -115,11 +116,14 @@ export class AudioSample {
         return;
       }
       const nextFileName = getAudioFileName(nextBufIdx);
-      if (!(await opfsExist(nextFileName))) {
+      if (!(await opfsExist(project, nextFileName))) {
         return;
       }
       this.buffers[nextBufIdx] = new Promise<AudioBuffer>(async (resolve) => {
-        const arrayBuffer = await opfsRead(getAudioFileName(nextBufIdx));
+        const arrayBuffer = await opfsRead(
+          project,
+          getAudioFileName(nextBufIdx)
+        );
         const audioBuffer = await this.audioContext.decodeAudioData(
           arrayBuffer
         );
@@ -133,7 +137,8 @@ export class AudioSample {
 
 export const splitMp3Segments = async (
   audioBuffer: AudioBuffer,
-  setStatus: (status: string) => void
+  setStatus: (status: string) => void,
+  project: string
 ) => {
   const duration = audioBuffer.duration;
   const totalChunks = Math.ceil(duration / AUDIO_BUFFER_SEGMENT_SEC);
@@ -150,7 +155,7 @@ export const splitMp3Segments = async (
       setStatus(`Error making segment`);
       return;
     }
-    await opfsWrite(`${AUDIO_SEGMENT_PREFIX}${i}.mp3`, mp3Segment);
+    await opfsWrite(project, `${AUDIO_SEGMENT_PREFIX}${i}.mp3`, mp3Segment);
   }
   setStatus(`splitting done`);
 };

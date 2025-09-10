@@ -1,50 +1,38 @@
-export const opfsWrite = async (fileName: string, blob: Blob) => {
+export const opfsWrite = async (
+  project: string,
+  fileName: string,
+  blob: Blob
+) => {
   const root = await navigator.storage.getDirectory();
 
-  const opfsFileHandle = await root.getFileHandle(fileName, { create: true });
+  const folder = await root.getDirectoryHandle(project);
+  const opfsFileHandle = await folder.getFileHandle(fileName, { create: true });
   const writable = await opfsFileHandle.createWritable();
 
   await writable.write(blob);
   await writable.close();
 };
 
-export const opfsRead = async (fileName: string) => {
+export const opfsRead = async (project: string, fileName: string) => {
   const root = await navigator.storage.getDirectory();
 
-  const opfsFileHandle = await root.getFileHandle(fileName);
+  const folder = await root.getDirectoryHandle(project);
+  const opfsFileHandle = await folder.getFileHandle(fileName);
   const ab = (await opfsFileHandle.getFile()).arrayBuffer();
   return ab;
 };
 
-export const opfsExist = async (filename: string) => {
+export const opfsExist = async (project: string, filename: string) => {
   const root = await navigator.storage.getDirectory();
   try {
-    await root.getFileHandle(filename, { create: false });
+    const folder = await root.getDirectoryHandle(project);
+    await folder.getFileHandle(filename, { create: false });
     return true;
   } catch (err: unknown) {
     if (err instanceof DOMException && err.name === "NotFoundError") {
       return false;
     } else {
       throw err;
-    }
-  }
-};
-
-interface FileSystemDirectoryHandle {
-  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
-  values(): AsyncIterableIterator<FileSystemHandle>;
-  keys(): AsyncIterableIterator<string>;
-}
-
-export const opfsClearAll = async (ext: string | undefined) => {
-  const root = await navigator.storage.getDirectory();
-
-  for await (const [name, handle] of (
-    root as unknown as FileSystemDirectoryHandle
-  ).entries()) {
-    if (handle.kind === "file") {
-      if (ext !== undefined && !name.endsWith(ext)) continue;
-      await root.removeEntry(name);
     }
   }
 };
