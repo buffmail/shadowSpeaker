@@ -413,7 +413,7 @@ export default function Home() {
       return;
     }
     try {
-      const [fileHandle] = await window.showOpenFilePicker({
+      const [fileHandle] = await window?.showOpenFilePicker({
         types:
           input === "audio"
             ? [
@@ -441,7 +441,7 @@ export default function Home() {
       const file = await fileHandle.getFile();
       if (input === "srt") {
         await opfsWrite(newProject, OPFS_SRT_NAME, file);
-        window.location.reload();
+        window?.location.reload();
         return;
       }
 
@@ -453,7 +453,7 @@ export default function Home() {
 
       await splitMp3Segments(audioBuffer, setStatus, newProject);
       saveLastProject(newProject);
-      window.location.reload();
+      window?.location.reload();
     } catch (error) {
       console.error("Error handling file:", error);
       setStatus(`Error processing ${input} file`);
