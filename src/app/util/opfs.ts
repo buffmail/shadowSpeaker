@@ -23,6 +23,9 @@ export const opfsRead = async (project: string, fileName: string) => {
 };
 
 export const opfsExist = async (project: string, filename: string) => {
+  if (project === "") {
+    return false;
+  }
   const root = await navigator.storage.getDirectory();
   try {
     const folder = await root.getDirectoryHandle(project);
