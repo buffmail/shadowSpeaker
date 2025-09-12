@@ -10,31 +10,35 @@ const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
 
 const loadPlayIndex = () => {
-  if (window?.localStorage) {
-    const idxStr = window.localStorage.getItem(LS_INDEX);
-    if (!idxStr) return 0;
-    return parseInt(idxStr);
+  if (typeof window === "undefined") {
+    return 0;
   }
-  return 0;
+  const idxStr = window.localStorage.getItem(LS_INDEX);
+  if (!idxStr) return 0;
+  return parseInt(idxStr);
 };
 
 const savePlayIndex = (index: number) => {
-  if (window?.localStorage) {
-    window.localStorage.setItem(LS_INDEX, index.toString());
+  if (typeof window === "undefined") {
+    return;
   }
+  window.localStorage.setItem(LS_INDEX, index.toString());
 };
 
 const loadLastProject = (): string | undefined => {
-  if (window?.localStorage) {
-    const projectStr = window.localStorage.getItem(LS_LAST_PROJECT);
-    if (!projectStr) return;
-    return projectStr;
+  if (typeof window === "undefined") {
+    return;
   }
-  return;
+  const projectStr = window.localStorage.getItem(LS_LAST_PROJECT);
+  if (!projectStr) return;
+  return projectStr;
 };
 
 const saveLastProject = (project: string) => {
-  window?.localStorage.setItem(LS_LAST_PROJECT, project);
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(LS_LAST_PROJECT, project);
 };
 
 const getRowId = (index: number) => `id-${index}`;
@@ -150,6 +154,7 @@ export default function Home() {
   const project = loadLastProject() ?? "";
 
   useEffect(() => {
+    const project = loadLastProject() ?? "";
     const audioContext = new AudioContext();
     const audioSample = new AudioSample(audioContext, setStatus);
     const playContext: PlayContext = { audioContext, audioSample };
