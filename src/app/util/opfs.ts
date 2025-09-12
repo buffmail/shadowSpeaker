@@ -5,7 +5,7 @@ export const opfsWrite = async (
 ) => {
   const root = await navigator.storage.getDirectory();
 
-  const folder = await root.getDirectoryHandle(project);
+  const folder = await root.getDirectoryHandle(project, { create: true });
   const opfsFileHandle = await folder.getFileHandle(fileName, { create: true });
   const writable = await opfsFileHandle.createWritable();
 
