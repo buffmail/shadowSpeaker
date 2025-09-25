@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import srtParser from "srt-parser-2";
 import { opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
+import { nanoid } from "nanoid";
+import memoizeOne from "memoize-one";
 
 const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
@@ -74,7 +76,7 @@ interface Segment {
   startTime: number;
   endTime: number;
   text: string;
-  sceneIdx: number;
+  sceneId: string;
 }
 
 interface RangeInfo {
@@ -137,6 +139,12 @@ const beep = (audioContext: AudioContext, onEnd: () => void) => {
     onEnd();
   };
 };
+
+const getAllSceneIds = memoizeOne((segments: Segment[]): string[] => {
+  return segments
+    .map((segment) => segment.sceneId)
+    .filter((e, i, a) => a.indexOf(e) === i);
+});
 
 export default function Home() {
   const [status, setStatus] = useState<string>("");
@@ -210,24 +218,24 @@ export default function Home() {
       const srtString = decoder.decode(srtContent);
       setStatus("srt file found. setting.");
 
-      let sceneIdx = -1;
+      let sceneId = "";
 
       const parser = new srtParser();
       const segments: Segment[] = parser
         .fromSrt(srtString)
-        .map((elem) => {
+        .map((elem, idx) => {
           const { startSeconds, endSeconds, text } = elem;
 
           const revisedText = text.replace(SCENE_TAG, "");
-          if (SCENE_TAG.test(text)) {
-            ++sceneIdx;
+          if (idx === 0 || SCENE_TAG.test(text)) {
+            sceneId = nanoid();
           }
 
           return {
             startMsec: Math.round(startSeconds * 1000),
             endMsec: Math.round(endSeconds * 1000),
             text: revisedText,
-            sceneIdx,
+            sceneId,
           };
         })
         .map((elem, idx, all) => {
@@ -249,12 +257,12 @@ export default function Home() {
             startTime: startMsec / 1000,
             endTime: endMsec / 1000,
             text: elem.text,
-            sceneIdx: elem.sceneIdx,
+            sceneId: elem.sceneId,
           };
         });
       setSegments(segments);
       segLengthRef.current = segments.length;
-      setScenes(sceneIdx);
+      setScenes(getAllSceneIds(segments).length);
       setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
     })();
 
@@ -285,7 +293,7 @@ export default function Home() {
       }
       const startSec = segment.startTime;
       const durationSec = segment.endTime - segment.startTime;
-      const sceneIdx = segment.sceneIdx;
+      const sceneId = segment.sceneId;
 
       setSegIndex(index);
       savePlayIndex(index);
@@ -307,10 +315,10 @@ export default function Home() {
 
       if (singleEntryLoop === false) {
         const sceneBeginIdx = segments.findIndex(
-          (elem) => elem.sceneIdx === sceneIdx
+          (elem) => elem.sceneId === sceneId
         );
         const sceneEndIdx = segments.findIndex(
-          (elem) => elem.sceneIdx === sceneIdx + 1
+          (elem) => elem.sceneId === sceneId + 1
         );
         const newBeginIdx = sceneBeginIdx === -1 ? index : sceneBeginIdx;
         const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
@@ -356,7 +364,7 @@ export default function Home() {
 
       const rangeStr = rangeInfo
         ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
-            sceneIdx + 1
+            getAllSceneIds(segments).indexOf(sceneId) + 1
           }/${scenes}]`
         : "";
       setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
@@ -470,7 +478,7 @@ export default function Home() {
   const isLoaded = audioSample.isLoaded();
 
   return (
-    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8">
+    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8 pb-24">
       <div className="flex flex-col items-center gap-4 w-full">
         <div className="flex flex-col sm:flex-row gap-4 w-full">
           <button
@@ -579,7 +587,7 @@ export default function Home() {
                       index < playInfo.rangeInfo.endIdx
                     : false;
                   const isNewScene =
-                    segment.sceneIdx !== segments[index - 1]?.sceneIdx;
+                    segment.sceneId !== segments[index - 1]?.sceneId;
                   return (
                     <tr
                       key={index}

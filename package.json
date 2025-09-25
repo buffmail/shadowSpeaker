@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
+    "memoize-one": "^6.0.0",
+    "nanoid": "^5.1.6",
     "next": "15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
