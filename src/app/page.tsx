@@ -6,6 +6,7 @@ import { opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 import { nanoid } from "nanoid";
 import memoizeOne from "memoize-one";
+import { produce } from "immer";
 
 const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
@@ -145,6 +146,23 @@ const getAllSceneIds = memoizeOne((segments: Segment[]): string[] => {
     .map((segment) => segment.sceneId)
     .filter((e, i, a) => a.indexOf(e) === i);
 });
+
+const splitScenes = (segments: Segment[], segIdx: number): Segment[] => {
+  if (segIdx < 0 || segIdx >= segments.length) {
+    return segments;
+  }
+  const origSceneId = segments[segIdx].sceneId;
+  const newSceneId = nanoid();
+  return produce(segments, (draft) => {
+    for (let i = segIdx; i < segments.length; ++i) {
+      if (draft[i].sceneId === origSceneId) {
+        draft[i].sceneId = newSceneId;
+      } else {
+        break;
+      }
+    }
+  });
+};
 
 export default function Home() {
   const [status, setStatus] = useState<string>("");
@@ -317,9 +335,13 @@ export default function Home() {
         const sceneBeginIdx = segments.findIndex(
           (elem) => elem.sceneId === sceneId
         );
-        const sceneEndIdx = segments.findIndex(
-          (elem) => elem.sceneId === sceneId + 1
-        );
+        const sceneIds = getAllSceneIds(segments);
+        const sceneIdIdx = sceneIds.indexOf(sceneId);
+        const nextSceneId = sceneIds[sceneIdIdx + 1];
+        const sceneEndIdx =
+          nextSceneId === undefined
+            ? segments.length
+            : segments.findIndex((elem) => elem.sceneId === nextSceneId);
         const newBeginIdx = sceneBeginIdx === -1 ? index : sceneBeginIdx;
         const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
         rangeInfo = initRangeInfo
@@ -664,6 +686,20 @@ export default function Home() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20">
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => {
+              const newSegments = splitScenes(segments, segIndex);
+              setSegments(newSegments);
+            }}
+            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Split Scene
+          </button>
+        </div>
       </div>
     </main>
   );
