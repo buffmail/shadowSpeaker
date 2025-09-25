@@ -44,6 +44,40 @@ const saveLastProject = (project: string) => {
   window.localStorage.setItem(LS_LAST_PROJECT, project);
 };
 
+const loadSceneSegIndices = async (projectName: string): Promise<number[]> => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const blob = await opfsRead(projectName, OPFS_SCENE_INDICES_NAME);
+    if (!blob) {
+      return [];
+    }
+    const decoder = new TextDecoder();
+    const sceneStr = decoder.decode(blob);
+    if (!sceneStr) {
+      return [];
+    }
+    const indices = JSON.parse(sceneStr);
+    if (!Array.isArray(indices)) {
+      throw new Error("scene indices is not an array");
+    }
+    return indices;
+  } catch (error) {
+    window.console.error("error during parsing scene indices", error);
+    return [];
+  }
+};
+
+const saveSceneSegIndices = async (projectName: string, indices: number[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const blob = new Blob([JSON.stringify(indices)], { type: "text/plain" });
+  await opfsWrite(projectName, OPFS_SCENE_INDICES_NAME, blob);
+};
+
 const getRowId = (index: number) => `id-${index}`;
 
 const getFileNameWithoutExt = (fileName: string) => {
@@ -72,6 +106,7 @@ declare global {
 }
 
 const OPFS_SRT_NAME = "transcript.srt";
+const OPFS_SCENE_INDICES_NAME = "sceneIndices.json";
 
 interface Segment {
   startTime: number;
@@ -238,6 +273,8 @@ export default function Home() {
 
       let sceneId = "";
 
+      const sceneSegIndices = await loadSceneSegIndices(project);
+
       const parser = new srtParser();
       const segments: Segment[] = parser
         .fromSrt(srtString)
@@ -245,7 +282,11 @@ export default function Home() {
           const { startSeconds, endSeconds, text } = elem;
 
           const revisedText = text.replace(SCENE_TAG, "");
-          if (idx === 0 || SCENE_TAG.test(text)) {
+          if (
+            idx === 0 ||
+            SCENE_TAG.test(text) ||
+            sceneSegIndices.includes(idx)
+          ) {
             sceneId = nanoid();
           }
 
@@ -691,9 +732,11 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20">
         <div className="flex justify-center gap-4">
           <button
-            onClick={() => {
+            onClick={async () => {
+              const sceneSegIndices = await loadSceneSegIndices(project);
               const newSegments = splitScenes(segments, segIndex);
               setSegments(newSegments);
+              saveSceneSegIndices(project, [...sceneSegIndices, segIndex]);
             }}
             className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
