@@ -742,6 +742,43 @@ export default function Home() {
           >
             Split Scene
           </button>
+          <button
+            onClick={async () => {
+              const segment = segments[segIndex];
+              if (!segment) {
+                return;
+              }
+              try {
+                await navigator.clipboard.writeText(segment.text);
+              } catch (err) {
+                console.error("Clipboard copy error:", err);
+              }
+            }}
+            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Copy segment
+          </button>
+          <button
+            onClick={async () => {
+              const segment = segments[segIndex];
+              if (!segment) {
+                return;
+              }
+              const sceneId = segment.sceneId;
+              const scene = segments.filter(
+                (segment) => segment.sceneId === sceneId
+              );
+              const sceneText = scene.map((segment) => segment.text).join("\n");
+              try {
+                await navigator.clipboard.writeText(sceneText);
+              } catch (err) {
+                console.error("Clipboard copy error:", err);
+              }
+            }}
+            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Copy scene
+          </button>
         </div>
       </div>
     </main>
