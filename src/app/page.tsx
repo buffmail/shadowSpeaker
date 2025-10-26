@@ -579,7 +579,7 @@ export default function Home() {
   const isLoaded = audioSample.isLoaded();
 
   return (
-    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8 pb-24">
+    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8 pb-24 landscape:pb-4">
       <div className="flex flex-col items-center gap-4 w-full">
         <div className="flex flex-col sm:flex-row gap-4 w-full">
           <button
@@ -650,7 +650,7 @@ export default function Home() {
             )}
           </p>
           {isLoaded && (
-            <div className="flex gap-4 sm:gap-8 w-full justify-center">
+            <div className="flex gap-4 sm:gap-8 w-full justify-center landscape:hidden">
               <div
                 onClick={() => {
                   const sceneId = (segments[segIndex] ?? segments[0]).sceneId;
@@ -822,7 +822,7 @@ export default function Home() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20 landscape:hidden">
         <div className="flex justify-center gap-4">
           <button
             onClick={async () => {
