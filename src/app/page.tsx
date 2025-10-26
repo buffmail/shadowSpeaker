@@ -465,11 +465,10 @@ export default function Home() {
       dummyAudioRef.current?.play();
 
       const rangeStr = rangeInfo
-        ? `[${rangeInfo.beginIdx + 1}~${rangeInfo.endIdx}][${
-            getAllSceneIds(segments).indexOf(sceneId) + 1
-          }/${scenes}]`
+        ? `[${getAllSceneIds(segments).indexOf(sceneId) + 1}/${scenes}]`
         : "";
-      setStatus(`current: ${index + 1} / ${segments.length} ${rangeStr}`);
+      const progressPercent = Math.round(((index + 1) / segments.length) * 100);
+      setStatus(`current: ${progressPercent}% ${rangeStr}`);
 
       if (rangeInfo?.type !== "selected") {
         document
