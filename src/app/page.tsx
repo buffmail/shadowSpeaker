@@ -215,12 +215,17 @@ const getNextSceneId = (segments: Segment[], sceneId: string): string => {
   return sceneIds[sceneIdIdx + 1];
 };
 
-const splitScenes = (segments: Segment[], segIdx: number): Segment[] => {
+const splitScenes = (
+  segments: Segment[],
+  segIdx: number,
+  type: "split" | "merge"
+): Segment[] => {
   if (segIdx < 0 || segIdx >= segments.length) {
     return segments;
   }
   const origSceneId = segments[segIdx].sceneId;
-  const newSceneId = nanoid();
+  const prevSceneId = getPrevSceneId(segments, origSceneId);
+  const newSceneId = type === "split" ? nanoid() : prevSceneId;
   return produce(segments, (draft) => {
     for (let i = segIdx; i < segments.length; ++i) {
       if (draft[i].sceneId === origSceneId) {
@@ -823,9 +828,14 @@ export default function Home() {
           <button
             onClick={async () => {
               const sceneSegIndices = await loadSceneSegIndices(project);
-              const newSegments = splitScenes(segments, segIndex);
+              const alreaySplit = sceneSegIndices.includes(segIndex);
+              const type = alreaySplit ? "merge" : "split";
+              const newSegments = splitScenes(segments, segIndex, type);
               setSegments(newSegments);
-              saveSceneSegIndices(project, [...sceneSegIndices, segIndex]);
+              const newSceneSegIndices = alreaySplit
+                ? sceneSegIndices.filter((idx) => idx !== segIndex)
+                : [...sceneSegIndices, segIndex];
+              saveSceneSegIndices(project, newSceneSegIndices);
             }}
             className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
