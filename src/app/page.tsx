@@ -182,6 +182,39 @@ const getAllSceneIds = memoizeOne((segments: Segment[]): string[] => {
     .filter((e, i, a) => a.indexOf(e) === i);
 });
 
+const getPrevSceneId = (segments: Segment[], sceneId: string): string => {
+  const sceneIds = getAllSceneIds(segments);
+  const sceneIdIdx = sceneIds.indexOf(sceneId);
+  return sceneIds[sceneIdIdx - 1];
+};
+
+const getSceneSegIndex = (
+  segments: Segment[],
+  sceneId: string
+): { beginIdx: number; endIdx: number } | undefined => {
+  const beginIdx = segments.findIndex((segment) => segment.sceneId === sceneId);
+  if (beginIdx === -1) {
+    return undefined;
+  }
+  let endIdx = undefined;
+  for (let i = beginIdx; i < segments.length; ++i) {
+    if (segments[i].sceneId !== sceneId) {
+      endIdx = i;
+      break;
+    }
+  }
+  if (endIdx === undefined) {
+    endIdx = segments.length;
+  }
+  return { beginIdx, endIdx };
+};
+
+const getNextSceneId = (segments: Segment[], sceneId: string): string => {
+  const sceneIds = getAllSceneIds(segments);
+  const sceneIdIdx = sceneIds.indexOf(sceneId);
+  return sceneIds[sceneIdIdx + 1];
+};
+
 const splitScenes = (segments: Segment[], segIdx: number): Segment[] => {
   if (segIdx < 0 || segIdx >= segments.length) {
     return segments;
@@ -385,11 +418,12 @@ export default function Home() {
             : segments.findIndex((elem) => elem.sceneId === nextSceneId);
         const newBeginIdx = sceneBeginIdx === -1 ? index : sceneBeginIdx;
         const newEndIdx = sceneEndIdx === -1 ? segments.length : sceneEndIdx;
-        rangeInfo = initRangeInfo
-          ? initRangeInfo
-          : prevRangeInfo
-          ? prevRangeInfo
-          : { beginIdx: newBeginIdx, endIdx: newEndIdx, type: "scene" };
+        rangeInfo = initRangeInfo ??
+          prevRangeInfo ?? {
+            beginIdx: newBeginIdx,
+            endIdx: newEndIdx,
+            type: "scene",
+          };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
           nextIndex = rangeInfo.beginIdx;
@@ -614,18 +648,73 @@ export default function Home() {
           {isLoaded && (
             <div className="flex gap-4 sm:gap-8 w-full justify-center">
               <div
-                onClick={() =>
-                  segIndex > 0 && playAudioSegment(segIndex - 1, true)
-                }
+                onClick={() => {
+                  const sceneId = (segments[segIndex] ?? segments[0]).sceneId;
+                  const scenePlay =
+                    playCtx.playInfo?.rangeInfo?.type === "scene";
+
+                  let prevSegIndex = segIndex > 0 ? segIndex - 1 : undefined;
+                  let rangeInfo: RangeInfo | undefined = undefined;
+                  if (scenePlay) {
+                    const prevSceneId = getPrevSceneId(segments, sceneId);
+                    const prevSceneRange = getSceneSegIndex(
+                      segments,
+                      prevSceneId
+                    );
+                    if (!prevSceneRange) {
+                      return;
+                    }
+                    rangeInfo = {
+                      beginIdx: prevSceneRange.beginIdx,
+                      endIdx: prevSceneRange.endIdx,
+                      type: "scene",
+                    };
+                    prevSegIndex = prevSceneRange.beginIdx;
+                  }
+                  if (prevSegIndex !== undefined) {
+                    playAudioSegment(
+                      prevSegIndex,
+                      rangeInfo ? false : true,
+                      rangeInfo
+                    );
+                  }
+                }}
                 className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
               >
                 Prev
               </div>
               <div
-                onClick={() =>
-                  segIndex < segments.length - 1 &&
-                  playAudioSegment(segIndex + 1, true)
-                }
+                onClick={() => {
+                  const sceneId = segments[segIndex].sceneId;
+                  const scenePlay =
+                    playCtx.playInfo?.rangeInfo?.type === "scene";
+                  let nextSegIndex =
+                    segIndex < segments.length - 1 ? segIndex + 1 : undefined;
+                  let rangeInfo: RangeInfo | undefined = undefined;
+                  if (scenePlay) {
+                    const nextSceneId = getNextSceneId(segments, sceneId);
+                    const nextSceneRange = getSceneSegIndex(
+                      segments,
+                      nextSceneId
+                    );
+                    if (!nextSceneRange) {
+                      return;
+                    }
+                    rangeInfo = {
+                      beginIdx: nextSceneRange.beginIdx,
+                      endIdx: nextSceneRange.endIdx,
+                      type: "scene",
+                    };
+                    nextSegIndex = nextSceneRange.beginIdx;
+                  }
+                  if (nextSegIndex !== undefined) {
+                    playAudioSegment(
+                      nextSegIndex,
+                      rangeInfo ? false : true,
+                      rangeInfo
+                    );
+                  }
+                }}
                 className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
               >
                 Next
