@@ -12,6 +12,11 @@ const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
 
+// Build time - set via NEXT_PUBLIC_BUILD_TIME env var at build time
+const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME 
+  ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('en-US', { timeZone: 'UTC' })
+  : new Date().toLocaleString('en-US', { timeZone: 'UTC' });
+
 const loadPlayIndex = () => {
   if (typeof window === "undefined") {
     return 0;
@@ -877,6 +882,9 @@ export default function Home() {
           >
             Copy scene
           </button>
+        </div>
+        <div className="text-xs text-gray-400 dark:text-gray-500 mt-8">
+          Build: {BUILD_TIME}
         </div>
       </div>
     </main>
