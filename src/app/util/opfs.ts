@@ -22,6 +22,22 @@ export const opfsRead = async (project: string, fileName: string) => {
   return ab;
 };
 
+export const opfsDelete = async (project: string, fileName: string) => {
+  if (project === "") {
+    return;
+  }
+  const root = await navigator.storage.getDirectory();
+  try {
+    const folder = await root.getDirectoryHandle(project);
+    await folder.removeEntry(fileName);
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "NotFoundError") {
+      return;
+    }
+    throw err;
+  }
+};
+
 export const opfsExist = async (project: string, filename: string) => {
   if (project === "") {
     return false;

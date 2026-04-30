@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import srtParser from "srt-parser-2";
-import { opfsExist, opfsRead, opfsWrite } from "./util/opfs";
+import { parseSync } from "subtitle";
+import { opfsDelete, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 import { nanoid } from "nanoid";
 import memoizeOne from "memoize-one";
@@ -111,7 +111,16 @@ declare global {
 }
 
 const OPFS_SRT_NAME = "transcript.srt";
+const OPFS_VTT_NAME = "transcript.vtt";
 const OPFS_SCENE_INDICES_NAME = "sceneIndices.json";
+
+const findSubtitleFile = async (
+  project: string
+): Promise<string | undefined> => {
+  if (await opfsExist(project, OPFS_SRT_NAME)) return OPFS_SRT_NAME;
+  if (await opfsExist(project, OPFS_VTT_NAME)) return OPFS_VTT_NAME;
+  return undefined;
+};
 
 interface Segment {
   startTime: number;
@@ -304,25 +313,25 @@ export default function Home() {
         return;
       }
 
-      if (!(await opfsExist(project, OPFS_SRT_NAME))) {
-        setStatus(`No srt`);
+      const subtitleFile = await findSubtitleFile(project);
+      if (!subtitleFile) {
+        setStatus(`No subtitle`);
         return;
       }
 
-      const srtContent = await opfsRead(project, OPFS_SRT_NAME);
+      const subtitleContent = await opfsRead(project, subtitleFile);
       const decoder = new TextDecoder();
-      const srtString = decoder.decode(srtContent);
-      setStatus("srt file found. setting.");
+      const subtitleString = decoder.decode(subtitleContent);
+      setStatus(`${subtitleFile} found. setting.`);
 
       let sceneId = "";
 
       const sceneSegIndices = await loadSceneSegIndices(project);
 
-      const parser = new srtParser();
-      const segments: Segment[] = parser
-        .fromSrt(srtString)
+      const segments: Segment[] = parseSync(subtitleString)
+        .flatMap((node) => (node.type === "cue" ? [node.data] : []))
         .map((elem, idx) => {
-          const { startSeconds, endSeconds, text } = elem;
+          const { start, end, text } = elem;
 
           const revisedText = text.replace(SCENE_TAG, "");
           if (
@@ -334,8 +343,8 @@ export default function Home() {
           }
 
           return {
-            startMsec: Math.round(startSeconds * 1000),
-            endMsec: Math.round(endSeconds * 1000),
+            startMsec: Math.round(start),
+            endMsec: Math.round(end),
             text: revisedText,
             sceneId,
           };
@@ -522,7 +531,7 @@ export default function Home() {
     setSelectedItems(new Set());
   };
 
-  const handleFileSelect = async (input: "audio" | "srt") => {
+  const handleFileSelect = async (input: "audio" | "subtitle") => {
     if (!playCtx) {
       return;
     }
@@ -540,10 +549,11 @@ export default function Home() {
                 {
                   description: "Subtitle Files",
                   accept: {
-                    "text/plain": [".srt"],
+                    "text/plain": [".srt", ".vtt"],
                     "application/x-subrip": [".srt"],
                     "text/srt": [".srt"],
                     "application/srt": [".srt"],
+                    "text/vtt": [".vtt"],
                   },
                 },
               ],
@@ -553,8 +563,12 @@ export default function Home() {
         input === "audio" ? getFileNameWithoutExt(fileHandle.name) : project;
 
       const file = await fileHandle.getFile();
-      if (input === "srt") {
-        await opfsWrite(newProject, OPFS_SRT_NAME, file);
+      if (input === "subtitle") {
+        const isVtt = file.name.toLowerCase().endsWith(".vtt");
+        const targetName = isVtt ? OPFS_VTT_NAME : OPFS_SRT_NAME;
+        const otherName = isVtt ? OPFS_SRT_NAME : OPFS_VTT_NAME;
+        await opfsWrite(newProject, targetName, file);
+        await opfsDelete(newProject, otherName);
         window?.location.reload();
         return;
       }
@@ -594,10 +608,10 @@ export default function Home() {
             Select Audio File
           </button>
           <button
-            onClick={() => handleFileSelect("srt")}
+            onClick={() => handleFileSelect("subtitle")}
             className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors flex-1 sm:flex-none"
           >
-            Select SRT File
+            Select SRT/VTT File
           </button>
         </div>
 
