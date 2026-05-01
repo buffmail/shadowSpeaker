@@ -1,12 +1,60 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, ReactNode } from "react";
 import { parseSync } from "subtitle";
 import { opfsDelete, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 import { nanoid } from "nanoid";
 import memoizeOne from "memoize-one";
 import { produce } from "immer";
+
+type Tone = "primary" | "success" | "danger" | "muted" | "slate";
+
+const TONE_CLASSES: Record<Tone, string> = {
+  primary: "bg-blue-500 hover:bg-blue-600",
+  success: "bg-green-500 hover:bg-green-600",
+  danger: "bg-red-500 hover:bg-red-600",
+  muted: "bg-gray-500 hover:bg-gray-600",
+  slate: "bg-slate-400 hover:bg-slate-500",
+};
+
+const ActionButton = ({
+  tone,
+  onClick,
+  className = "",
+  compact = false,
+  children,
+}: {
+  tone: Tone;
+  onClick: () => void;
+  className?: string;
+  compact?: boolean;
+  children: ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    className={`cursor-pointer ${TONE_CLASSES[tone]} text-white ${
+      compact ? "px-3 py-1 text-sm" : "px-6 py-3"
+    } rounded-lg font-medium transition-colors ${className}`}
+  >
+    {children}
+  </button>
+);
+
+const NavButton = ({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) => (
+  <div
+    onClick={onClick}
+    className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
+  >
+    {label}
+  </div>
+);
 
 const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
@@ -264,7 +312,18 @@ export default function Home() {
     undefined
   );
   const dummyAudioRef = useRef<HTMLAudioElement | undefined>(undefined);
+  const [stuck, setStuck] = useState<boolean>(false);
   const project = loadLastProject() ?? "";
+
+  const stickyRefCallback = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStuck(entry.intersectionRatio < 1),
+      { threshold: [1] }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const project = loadLastProject() ?? "";
@@ -531,6 +590,78 @@ export default function Home() {
     setSelectedItems(new Set());
   };
 
+  const navigateBy = (direction: 1 | -1) => {
+    const segment = segments[segIndex] ?? segments[0];
+    if (!segment) return;
+    const scenePlay = playCtx?.playInfo?.rangeInfo?.type === "scene";
+
+    if (scenePlay) {
+      const targetSceneId =
+        direction === -1
+          ? getPrevSceneId(segments, segment.sceneId)
+          : getNextSceneId(segments, segment.sceneId);
+      const range = getSceneSegIndex(segments, targetSceneId);
+      if (!range) return;
+      playAudioSegment(range.beginIdx, false, {
+        beginIdx: range.beginIdx,
+        endIdx: range.endIdx,
+        type: "scene",
+      });
+      return;
+    }
+
+    const targetIdx = segIndex + direction;
+    if (targetIdx >= 0 && targetIdx < segments.length) {
+      playAudioSegment(targetIdx, true);
+    }
+  };
+
+  const togglePlay = async () => {
+    if (!playCtx) return;
+    if (playInfo) {
+      stopPlayback(playCtx);
+      setStatus(status + " stopped");
+      return;
+    }
+    if (playCtx.audioContext.state === "suspended") {
+      await playCtx.audioContext.resume();
+    }
+    playAudioSegment(segIndex, false);
+  };
+
+  const toggleSplitScene = async () => {
+    const sceneSegIndices = await loadSceneSegIndices(project);
+    const alreadySplit = sceneSegIndices.includes(segIndex);
+    setSegments(splitScenes(segments, segIndex, alreadySplit ? "merge" : "split"));
+    const newIndices = alreadySplit
+      ? sceneSegIndices.filter((idx) => idx !== segIndex)
+      : [...sceneSegIndices, segIndex];
+    saveSceneSegIndices(project, newIndices);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error("Clipboard copy error:", err);
+    }
+  };
+
+  const copySegmentText = () => {
+    const segment = segments[segIndex];
+    if (segment) copyToClipboard(segment.text);
+  };
+
+  const copySceneText = () => {
+    const segment = segments[segIndex];
+    if (!segment) return;
+    const sceneText = segments
+      .filter((s) => s.sceneId === segment.sceneId)
+      .map((s) => s.text)
+      .join("\n");
+    copyToClipboard(sceneText);
+  };
+
   const handleFileSelect = async (input: "audio" | "subtitle") => {
     if (!playCtx) {
       return;
@@ -601,147 +732,80 @@ export default function Home() {
     <main className="min-h-screen flex items-center justify-center py-4 sm:py-8 pb-24 landscape:pb-4">
       <div className="flex flex-col items-center gap-4 w-full">
         <div className="flex flex-col sm:flex-row gap-4 w-full">
-          <button
+          <ActionButton
+            tone="primary"
             onClick={() => handleFileSelect("audio")}
-            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors flex-1 sm:flex-none"
+            className="flex-1 sm:flex-none"
           >
             Select Audio File
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={() => handleFileSelect("subtitle")}
-            className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors flex-1 sm:flex-none"
+            className="flex-1 sm:flex-none"
           >
             Select SRT/VTT File
-          </button>
+          </ActionButton>
         </div>
 
-        <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 py-4 w-full flex flex-col items-center gap-4">
-          {isLoaded && (
-            <div className="flex gap-4">
-              {selectionMode ? (
-                <>
-                  <button
-                    onClick={playSelectedItems}
-                    className="cursor-pointer bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                  >
-                    Play Selected ({selectedItems.size})
-                  </button>
-                  <button
-                    onClick={cancelSelection}
-                    className="cursor-pointer bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={async () => {
-                      if (playInfo) {
-                        stopPlayback(playCtx);
-                        setStatus(status + " stopped");
-                      } else {
-                        // CRITICAL: Resume AudioContext before playing
-                        if (playCtx.audioContext.state === "suspended") {
-                          await playCtx.audioContext.resume();
-                        }
-                        playAudioSegment(segIndex, false);
-                      }
-                    }}
-                    className={`cursor-pointer ${
-                      playInfo
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-green-500 hover:bg-green-600"
-                    } text-white px-6 py-3 rounded-lg font-medium transition-colors`}
+        <div
+          ref={stickyRefCallback}
+          className={`sticky -top-px z-10 bg-white dark:bg-gray-900 w-full flex flex-col items-center transition-[padding,gap] ${
+            stuck ? "py-1 gap-1" : "py-4 gap-4"
+          }`}
+        >
+          <div
+            className={`flex flex-col-reverse landscape:flex-row items-center landscape:gap-8 ${
+              stuck ? "gap-1" : "gap-4"
+            }`}
+          >
+            <p
+              className={`text-gray-600 dark:text-gray-400 text-center ${
+                stuck ? "text-sm sm:text-base" : "text-lg sm:text-2xl"
+              }`}
+            >
+              {status}
+              {selectionMode && (
+                <span className="block text-sm text-blue-500 mt-1">
+                  Selection Mode: {selectedItems.size} item(s) selected
+                </span>
+              )}
+            </p>
+            {isLoaded && (
+              <div className="flex gap-4">
+                {selectionMode ? (
+                  <>
+                    <ActionButton
+                      tone="success"
+                      compact={stuck}
+                      onClick={playSelectedItems}
+                    >
+                      Play Selected ({selectedItems.size})
+                    </ActionButton>
+                    <ActionButton
+                      tone="muted"
+                      compact={stuck}
+                      onClick={cancelSelection}
+                    >
+                      Cancel
+                    </ActionButton>
+                  </>
+                ) : (
+                  <ActionButton
+                    tone={playInfo ? "danger" : "success"}
+                    compact={stuck}
+                    onClick={togglePlay}
                   >
                     {playInfo ? "Stop" : "Play"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          <p className="text-lg sm:text-2xl text-gray-600 dark:text-gray-400 text-center">
-            {status}
-            {selectionMode && (
-              <span className="block text-sm text-blue-500 mt-1">
-                Selection Mode: {selectedItems.size} item(s) selected
-              </span>
+                  </ActionButton>
+                )}
+              </div>
             )}
-          </p>
+          </div>
           {isLoaded && (
             <div className="flex gap-4 sm:gap-8 w-full justify-center landscape:hidden">
-              <div
-                onClick={() => {
-                  const sceneId = (segments[segIndex] ?? segments[0]).sceneId;
-                  const scenePlay =
-                    playCtx.playInfo?.rangeInfo?.type === "scene";
-
-                  let prevSegIndex = segIndex > 0 ? segIndex - 1 : undefined;
-                  let rangeInfo: RangeInfo | undefined = undefined;
-                  if (scenePlay) {
-                    const prevSceneId = getPrevSceneId(segments, sceneId);
-                    const prevSceneRange = getSceneSegIndex(
-                      segments,
-                      prevSceneId
-                    );
-                    if (!prevSceneRange) {
-                      return;
-                    }
-                    rangeInfo = {
-                      beginIdx: prevSceneRange.beginIdx,
-                      endIdx: prevSceneRange.endIdx,
-                      type: "scene",
-                    };
-                    prevSegIndex = prevSceneRange.beginIdx;
-                  }
-                  if (prevSegIndex !== undefined) {
-                    playAudioSegment(
-                      prevSegIndex,
-                      rangeInfo ? false : true,
-                      rangeInfo
-                    );
-                  }
-                }}
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
-              >
-                Prev
-              </div>
-              <div
-                onClick={() => {
-                  const sceneId = segments[segIndex].sceneId;
-                  const scenePlay =
-                    playCtx.playInfo?.rangeInfo?.type === "scene";
-                  let nextSegIndex =
-                    segIndex < segments.length - 1 ? segIndex + 1 : undefined;
-                  let rangeInfo: RangeInfo | undefined = undefined;
-                  if (scenePlay) {
-                    const nextSceneId = getNextSceneId(segments, sceneId);
-                    const nextSceneRange = getSceneSegIndex(
-                      segments,
-                      nextSceneId
-                    );
-                    if (!nextSceneRange) {
-                      return;
-                    }
-                    rangeInfo = {
-                      beginIdx: nextSceneRange.beginIdx,
-                      endIdx: nextSceneRange.endIdx,
-                      type: "scene",
-                    };
-                    nextSegIndex = nextSceneRange.beginIdx;
-                  }
-                  if (nextSegIndex !== undefined) {
-                    playAudioSegment(
-                      nextSegIndex,
-                      rangeInfo ? false : true,
-                      rangeInfo
-                    );
-                  }
-                }}
-                className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
-              >
-                Next
-              </div>
+              <NavButton label="Prev" onClick={() => navigateBy(-1)} />
+              <NavButton label="Next" onClick={() => navigateBy(1)} />
             </div>
           )}
         </div>
@@ -843,59 +907,15 @@ export default function Home() {
 
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20 landscape:hidden">
         <div className="flex justify-center gap-4">
-          <button
-            onClick={async () => {
-              const sceneSegIndices = await loadSceneSegIndices(project);
-              const alreaySplit = sceneSegIndices.includes(segIndex);
-              const type = alreaySplit ? "merge" : "split";
-              const newSegments = splitScenes(segments, segIndex, type);
-              setSegments(newSegments);
-              const newSceneSegIndices = alreaySplit
-                ? sceneSegIndices.filter((idx) => idx !== segIndex)
-                : [...sceneSegIndices, segIndex];
-              saveSceneSegIndices(project, newSceneSegIndices);
-            }}
-            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
+          <ActionButton tone="slate" onClick={toggleSplitScene}>
             Split Scene
-          </button>
-          <button
-            onClick={async () => {
-              const segment = segments[segIndex];
-              if (!segment) {
-                return;
-              }
-              try {
-                await navigator.clipboard.writeText(segment.text);
-              } catch (err) {
-                console.error("Clipboard copy error:", err);
-              }
-            }}
-            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
+          </ActionButton>
+          <ActionButton tone="slate" onClick={copySegmentText}>
             Copy segment
-          </button>
-          <button
-            onClick={async () => {
-              const segment = segments[segIndex];
-              if (!segment) {
-                return;
-              }
-              const sceneId = segment.sceneId;
-              const scene = segments.filter(
-                (segment) => segment.sceneId === sceneId
-              );
-              const sceneText = scene.map((segment) => segment.text).join("\n");
-              try {
-                await navigator.clipboard.writeText(sceneText);
-              } catch (err) {
-                console.error("Clipboard copy error:", err);
-              }
-            }}
-            className="cursor-pointer bg-slate-400 hover:bg-slate-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
+          </ActionButton>
+          <ActionButton tone="slate" onClick={copySceneText}>
             Copy scene
-          </button>
+          </ActionButton>
         </div>
         <div className="text-xs text-gray-400 dark:text-gray-500 mt-8">
           Build: {BUILD_TIME}
