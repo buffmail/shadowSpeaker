@@ -122,6 +122,9 @@ const loadSceneSegIndices = async (projectName: string): Promise<number[]> => {
     }
     return indices;
   } catch (error) {
+    if (error instanceof DOMException && error.name === "NotFoundError") {
+      return [];
+    }
     window.console.error("error during parsing scene indices", error);
     return [];
   }
