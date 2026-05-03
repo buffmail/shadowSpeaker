@@ -1014,7 +1014,7 @@ export default function Home() {
             role="dialog"
             aria-label="Menu"
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-medium text-gray-700 dark:text-gray-200">
                 Menu
               </h2>
@@ -1025,6 +1025,12 @@ export default function Home() {
               >
                 ×
               </button>
+            </div>
+            <div className="mb-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+              <span className="text-gray-400 dark:text-gray-500">Project: </span>
+              <span className="text-gray-700 dark:text-gray-200">
+                {project || "(none)"}
+              </span>
             </div>
             <ActionButton
               tone="primary"
