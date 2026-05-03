@@ -130,6 +130,46 @@ const saveSceneSegIndices = async (projectName: string, indices: number[]) => {
   await opfsWrite(projectName, OPFS_SCENE_INDICES_NAME, blob);
 };
 
+const loadFavoriteIndices = async (projectName: string): Promise<number[]> => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const blob = await opfsRead(projectName, OPFS_FAVORITE_INDICES_NAME);
+    if (!blob) {
+      return [];
+    }
+    const decoder = new TextDecoder();
+    const favStr = decoder.decode(blob);
+    if (!favStr) {
+      return [];
+    }
+    const indices = JSON.parse(favStr);
+    if (!Array.isArray(indices)) {
+      throw new Error("favorite indices is not an array");
+    }
+    return indices;
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === "NotFoundError"
+    ) {
+      return [];
+    }
+    window.console.error("error during parsing favorite indices", error);
+    return [];
+  }
+};
+
+const saveFavoriteIndices = async (projectName: string, indices: number[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const blob = new Blob([JSON.stringify(indices)], { type: "text/plain" });
+  await opfsWrite(projectName, OPFS_FAVORITE_INDICES_NAME, blob);
+};
+
 const getRowId = (index: number) => `id-${index}`;
 
 const getFileNameWithoutExt = (fileName: string) => {
@@ -160,6 +200,7 @@ declare global {
 const OPFS_SRT_NAME = "transcript.srt";
 const OPFS_VTT_NAME = "transcript.vtt";
 const OPFS_SCENE_INDICES_NAME = "sceneIndices.json";
+const OPFS_FAVORITE_INDICES_NAME = "favoriteIndices.json";
 
 const findSubtitleFile = async (
   project: string
@@ -306,6 +347,7 @@ export default function Home() {
   const [scenes, setScenes] = useState<number>(0);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [favoriteIndices, setFavoriteIndices] = useState<Set<number>>(new Set());
   const segLengthRef = useRef<number>(0);
   const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
     undefined
@@ -432,6 +474,8 @@ export default function Home() {
       setSegments(segments);
       segLengthRef.current = segments.length;
       setScenes(getAllSceneIds(segments).length);
+      const favs = await loadFavoriteIndices(project);
+      setFavoriteIndices(new Set(favs));
       setStatus(`Current: ${lastIdx + 1} / ${segments.length}`);
     })();
 
@@ -626,6 +670,19 @@ export default function Home() {
       await playCtx.audioContext.resume();
     }
     playAudioSegment(segIndex, false);
+  };
+
+  const toggleFavorite = (index: number) => {
+    setFavoriteIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      saveFavoriteIndices(project, Array.from(next));
+      return next;
+    });
   };
 
   const toggleSplitScene = async () => {
@@ -852,7 +909,26 @@ export default function Home() {
                           index + 1
                         )}
                       </td>
-                      <td className="p-1 sm:p-2 break-words min-w-0 select-text">
+                      <td
+                        className="p-1 sm:p-2 break-words min-w-0 select-none"
+                        onPointerDown={(e) => {
+                          if (selectionMode) return;
+                          e.persist?.();
+                          const timeoutId = setTimeout(() => {
+                            if (!selectionMode) toggleFavorite(index);
+                          }, 500);
+                          const clear = () => clearTimeout(timeoutId);
+                          e.target.addEventListener("pointerup", clear, {
+                            once: true,
+                          });
+                          e.target.addEventListener("pointerleave", clear, {
+                            once: true,
+                          });
+                        }}
+                      >
+                        {favoriteIndices.has(index) && (
+                          <span className="mr-1 text-yellow-400">★</span>
+                        )}
                         {segment.text}
                       </td>
                       <td className="p-1 sm:p-2 select-none">
