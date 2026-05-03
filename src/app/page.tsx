@@ -374,14 +374,14 @@ export default function Home() {
 
       const subtitleFile = await findSubtitleFile(project);
       if (!subtitleFile) {
-        setStatus(`No subtitle`);
+        setStatus(`No subtitle found`);
         return;
       }
 
       const subtitleContent = await opfsRead(project, subtitleFile);
       const decoder = new TextDecoder();
       const subtitleString = decoder.decode(subtitleContent);
-      setStatus(`${subtitleFile} found. setting.`);
+      setStatus(`Loading ${subtitleFile}…`);
 
       let sceneId = "";
 
@@ -433,7 +433,7 @@ export default function Home() {
       setSegments(segments);
       segLengthRef.current = segments.length;
       setScenes(getAllSceneIds(segments).length);
-      setStatus(`current: ${lastIdx + 1} / ${segments.length}`);
+      setStatus(`Current: ${lastIdx + 1} / ${segments.length}`);
     })();
 
     return () => {
@@ -541,7 +541,7 @@ export default function Home() {
         ? `[${getAllSceneIds(segments).indexOf(sceneId) + 1}/${scenes}]`
         : "";
       const progressPercent = Math.round(((index + 1) / segments.length) * 100);
-      setStatus(`current: ${progressPercent}% ${rangeStr}`);
+      setStatus(`Current: ${progressPercent}% ${rangeStr}`);
 
       if (rangeInfo?.type !== "selected") {
         document
@@ -620,7 +620,7 @@ export default function Home() {
     if (!playCtx) return;
     if (playInfo) {
       stopPlayback(playCtx);
-      setStatus(status + " stopped");
+      setStatus("Stopped");
       return;
     }
     if (playCtx.audioContext.state === "suspended") {
@@ -704,7 +704,7 @@ export default function Home() {
         return;
       }
 
-      setStatus(`decoding audio`);
+      setStatus(`Decoding audio…`);
       const arrayBuffer = await file.arrayBuffer();
       const audioBuffer = await playCtx.audioContext.decodeAudioData(
         arrayBuffer
@@ -767,7 +767,7 @@ export default function Home() {
               {status}
               {selectionMode && (
                 <span className="block text-sm text-blue-500 mt-1">
-                  Selection Mode: {selectedItems.size} item(s) selected
+                  Selection mode: {selectedItems.size} selected
                 </span>
               )}
             </p>
@@ -911,10 +911,10 @@ export default function Home() {
             Split Scene
           </ActionButton>
           <ActionButton tone="slate" onClick={copySegmentText}>
-            Copy segment
+            Copy Segment
           </ActionButton>
           <ActionButton tone="slate" onClick={copySceneText}>
-            Copy scene
+            Copy Scene
           </ActionButton>
         </div>
         <div className="text-xs text-gray-400 dark:text-gray-500 mt-8">

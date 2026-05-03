@@ -41,7 +41,7 @@ export class AudioSample {
     this.sampleRate = audioBuffer.sampleRate;
 
     this.buffers[0] = Promise.resolve(audioBuffer);
-    setStatus(`Segment initialized`);
+    setStatus(`Audio loaded`);
     return true;
   };
 
@@ -145,19 +145,19 @@ export const splitMp3Segments = async (
   for (let i = 0; i < totalChunks; ++i) {
     const startSec = i * AUDIO_BUFFER_SEGMENT_SEC;
     const endSec = (i + 1) * AUDIO_BUFFER_SEGMENT_SEC;
-    setStatus(`splitting ${i + 1} / ${totalChunks}`);
+    setStatus(`Splitting ${i + 1} / ${totalChunks}`);
     const mp3Segment = await audioBufferToMp3Blob(
       audioBuffer,
       startSec,
       endSec
     );
     if (!mp3Segment) {
-      setStatus(`Error making segment`);
+      setStatus(`Error creating segment`);
       return;
     }
     await opfsWrite(project, `${AUDIO_SEGMENT_PREFIX}${i}.mp3`, mp3Segment);
   }
-  setStatus(`splitting done`);
+  setStatus(`Splitting done`);
 };
 
 const audioBufferToMp3Blob = (
