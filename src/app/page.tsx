@@ -496,7 +496,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setBuildTime(new Date(BUILD_TIME_ISO).toLocaleString("en-US"));
+    const date = new Date(BUILD_TIME_ISO);
+    const formatted = date.toLocaleString("en-US");
+    const tzName = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value;
+    setBuildTime(tzName ? `${formatted} (${tzName})` : formatted);
   }, []);
 
   useEffect(() => {
