@@ -60,7 +60,6 @@ const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
 
-// Build time - set via NEXT_PUBLIC_BUILD_TIME env var at build time
 const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME 
   ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('en-US', { timeZone: 'UTC' })
   : new Date().toLocaleString('en-US', { timeZone: 'UTC' });

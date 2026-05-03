@@ -251,7 +251,6 @@ export const makeSilentWav = (durationMs: number) => {
     p += 2;
   }
 
-  // WAV header
   wrStr("RIFF");
   wr32(36 + dataSize);
   wrStr("WAVE");
@@ -266,13 +265,11 @@ export const makeSilentWav = (durationMs: number) => {
   wrStr("data");
   wr32(dataSize);
 
-  // PCM data = all zeros (silence)
   for (let i = 0; i < numSamples; i++) {
     view.setInt16(p, 0, true);
     p += 2;
   }
 
-  // Convert to base64 data URL
   const u8 = new Uint8Array(buffer);
   let binary = "";
   const chunk = 0x8000;
