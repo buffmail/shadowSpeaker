@@ -348,6 +348,7 @@ export default function Home() {
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [favoriteIndices, setFavoriteIndices] = useState<Set<number>>(new Set());
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const segLengthRef = useRef<number>(0);
   const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
     undefined
@@ -485,6 +486,15 @@ export default function Home() {
       audioContext.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   const playAudioSegment = async (
     index: number,
@@ -784,26 +794,38 @@ export default function Home() {
 
   const isLoaded = audioSample.isLoaded();
 
-  return (
-    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8 pb-24 landscape:pb-4">
-      <div className="flex flex-col items-center gap-4 w-full">
-        <div className="flex flex-col sm:flex-row gap-4 w-full">
-          <ActionButton
-            tone="primary"
-            onClick={() => handleFileSelect("audio")}
-            className="flex-1 sm:flex-none"
-          >
-            Select Audio File
-          </ActionButton>
-          <ActionButton
-            tone="primary"
-            onClick={() => handleFileSelect("subtitle")}
-            className="flex-1 sm:flex-none"
-          >
-            Select SRT/VTT File
-          </ActionButton>
-        </div>
+  const runFromMenu = (handler: () => void) => () => {
+    setMenuOpen(false);
+    handler();
+  };
 
+  return (
+    <main className="min-h-screen flex items-center justify-center py-4 sm:py-8">
+      <button
+        onClick={() => setMenuOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={menuOpen}
+        className="fixed top-4 right-4 z-30 p-2 rounded-md bg-white/80 dark:bg-gray-800/80 backdrop-blur border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-gray-700 dark:text-gray-200"
+        >
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      <div className="flex flex-col items-center gap-4 w-full">
         <div
           ref={stickyRefCallback}
           className={`sticky -top-px z-10 bg-white dark:bg-gray-900 w-full flex flex-col items-center transition-[padding,gap] ${
@@ -980,22 +1002,63 @@ export default function Home() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20 landscape:hidden">
-        <div className="flex justify-center gap-4">
-          <ActionButton tone="slate" onClick={toggleSplitScene}>
-            Split Scene
-          </ActionButton>
-          <ActionButton tone="slate" onClick={copySegmentText}>
-            Copy Segment
-          </ActionButton>
-          <ActionButton tone="slate" onClick={copySceneText}>
-            Copy Scene
-          </ActionButton>
-        </div>
-        <div className="text-xs text-gray-400 dark:text-gray-500 mt-8">
-          Build: {BUILD_TIME}
-        </div>
-      </div>
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            className="fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-white dark:bg-gray-900 z-50 p-4 shadow-xl flex flex-col gap-3"
+            role="dialog"
+            aria-label="Menu"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                Menu
+              </h2>
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <ActionButton
+              tone="primary"
+              onClick={runFromMenu(() => handleFileSelect("audio"))}
+            >
+              Select Audio File
+            </ActionButton>
+            <ActionButton
+              tone="primary"
+              onClick={runFromMenu(() => handleFileSelect("subtitle"))}
+            >
+              Select SRT/VTT File
+            </ActionButton>
+            <ActionButton
+              tone="slate"
+              onClick={runFromMenu(toggleSplitScene)}
+            >
+              Split Scene
+            </ActionButton>
+            <ActionButton
+              tone="slate"
+              onClick={runFromMenu(copySegmentText)}
+            >
+              Copy Segment
+            </ActionButton>
+            <ActionButton tone="slate" onClick={runFromMenu(copySceneText)}>
+              Copy Scene
+            </ActionButton>
+            <div className="mt-auto text-xs text-gray-400 dark:text-gray-500">
+              Build: {BUILD_TIME}
+            </div>
+          </aside>
+        </>
+      )}
     </main>
   );
 }
