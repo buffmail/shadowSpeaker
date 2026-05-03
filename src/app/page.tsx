@@ -226,7 +226,6 @@ interface Segment {
 }
 
 interface RangeInfo {
-  type: "scene" | "selected";
   beginIdx: number;
   endIdx: number;
 }
@@ -353,8 +352,6 @@ export default function Home() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [segIndex, setSegIndex] = useState<number>(0);
   const [scenes, setScenes] = useState<number>(0);
-  const [selectionMode, setSelectionMode] = useState<boolean>(false);
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [favoriteIndices, setFavoriteIndices] = useState<Set<number>>(new Set());
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState<boolean>(false);
@@ -572,7 +569,6 @@ export default function Home() {
           prevRangeInfo ?? {
             beginIdx: newBeginIdx,
             endIdx: newEndIdx,
-            type: "scene",
           };
         let nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
@@ -600,8 +596,7 @@ export default function Home() {
         });
       }
 
-      const playBeep =
-        rangeInfo && rangeInfo.type === "scene" && rangeInfo.beginIdx === index;
+      const playBeep = rangeInfo?.beginIdx === index;
       if (playBeep) {
         beep(audioContext, () => abSrcNode.start());
       } else {
@@ -615,11 +610,9 @@ export default function Home() {
       const progressPercent = Math.round(((index + 1) / segments.length) * 100);
       setStatus(`Current: ${progressPercent}% ${rangeStr}`);
 
-      if (rangeInfo?.type !== "selected") {
-        document
-          .getElementById(getRowId(index))
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      document
+        .getElementById(getRowId(index))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
@@ -627,45 +620,10 @@ export default function Home() {
   };
   playAudioSegmentRef.current = playAudioSegment;
 
-  const toggleSelection = (index: number) => {
-    if (!selectionMode) return;
-
-    setSelectedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
-  };
-
-  const playSelectedItems = async () => {
-    if (selectedItems.size === 0) return;
-
-    const selectedArray = Array.from(selectedItems).sort((a, b) => a - b);
-    setSelectionMode(false);
-    setSelectedItems(new Set());
-
-    const initRangeInfo: RangeInfo = {
-      beginIdx: selectedArray[0],
-      endIdx: selectedArray[selectedArray.length - 1] + 1,
-      type: "selected",
-    };
-
-    await playAudioSegment(selectedArray[0], false, initRangeInfo);
-  };
-
-  const cancelSelection = () => {
-    setSelectionMode(false);
-    setSelectedItems(new Set());
-  };
-
   const navigateBy = (direction: 1 | -1) => {
     const segment = segments[segIndex] ?? segments[0];
     if (!segment) return;
-    const scenePlay = playCtx?.playInfo?.rangeInfo?.type === "scene";
+    const scenePlay = !!playCtx?.playInfo?.rangeInfo;
 
     if (scenePlay) {
       const targetSceneId =
@@ -677,7 +635,6 @@ export default function Home() {
       playAudioSegment(range.beginIdx, false, {
         beginIdx: range.beginIdx,
         endIdx: range.endIdx,
-        type: "scene",
       });
       return;
     }
@@ -881,40 +838,16 @@ export default function Home() {
               }`}
             >
               {status}
-              {selectionMode && (
-                <span className="block text-sm text-blue-500 mt-1">
-                  Selection mode: {selectedItems.size} selected
-                </span>
-              )}
             </p>
             {isLoaded && (
               <div className="flex gap-4">
-                {selectionMode ? (
-                  <>
-                    <ActionButton
-                      tone="success"
-                      compact={stuck}
-                      onClick={playSelectedItems}
-                    >
-                      Play Selected ({selectedItems.size})
-                    </ActionButton>
-                    <ActionButton
-                      tone="muted"
-                      compact={stuck}
-                      onClick={cancelSelection}
-                    >
-                      Cancel
-                    </ActionButton>
-                  </>
-                ) : (
-                  <ActionButton
-                    tone={playInfo ? "danger" : "success"}
-                    compact={stuck}
-                    onClick={togglePlay}
-                  >
-                    {playInfo ? "Stop" : "Play"}
-                  </ActionButton>
-                )}
+                <ActionButton
+                  tone={playInfo ? "danger" : "success"}
+                  compact={stuck}
+                  onClick={togglePlay}
+                >
+                  {playInfo ? "Stop" : "Play"}
+                </ActionButton>
               </div>
             )}
           </div>
@@ -958,24 +891,14 @@ export default function Home() {
                           betweenRange ? "border-l-2 border-blue-500" : ""
                         }`}
                       >
-                        {selectionMode ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(index)}
-                            onChange={() => toggleSelection(index)}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                        ) : (
-                          index + 1
-                        )}
+                        {index + 1}
                       </td>
                       <td
                         className="p-1 sm:p-2 break-words min-w-0 select-none"
                         onPointerDown={(e) => {
-                          if (selectionMode) return;
                           e.persist?.();
                           const timeoutId = setTimeout(() => {
-                            if (!selectionMode) toggleFavorite(index);
+                            toggleFavorite(index);
                           }, 500);
                           const clear = () => clearTimeout(timeoutId);
                           e.target.addEventListener("pointerup", clear, {
@@ -993,30 +916,8 @@ export default function Home() {
                       </td>
                       <td className="p-1 sm:p-2 select-none">
                         <button
-                          className={`px-1.5 py-0.5 rounded text-xs select-none flex items-center justify-center ${
-                            selectionMode
-                              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                              : "bg-blue-500 text-white"
-                          }`}
+                          className="px-1.5 py-0.5 rounded text-xs select-none flex items-center justify-center bg-blue-500 text-white"
                           onClick={() => playAudioSegment(index, true)}
-                          onPointerDown={(e) => {
-                            if (selectionMode) return;
-                            e.persist?.();
-                            const timeoutId = setTimeout(() => {
-                              if (!selectionMode) {
-                                setSelectionMode(true);
-                                setSelectedItems(new Set([index]));
-                              }
-                            }, 500);
-                            const clear = () => clearTimeout(timeoutId);
-                            e.target.addEventListener("pointerup", clear, {
-                              once: true,
-                            });
-                            e.target.addEventListener("pointerleave", clear, {
-                              once: true,
-                            });
-                          }}
-                          disabled={selectionMode}
                           aria-label="Play"
                         >
                           <svg
