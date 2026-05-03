@@ -38,6 +38,22 @@ export const opfsDelete = async (project: string, fileName: string) => {
   }
 };
 
+interface IterableFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
+  values(): AsyncIterableIterator<FileSystemHandle>;
+}
+
+export const opfsListProjects = async (): Promise<string[]> => {
+  const root =
+    (await navigator.storage.getDirectory()) as IterableFileSystemDirectoryHandle;
+  const names: string[] = [];
+  for await (const handle of root.values()) {
+    if (handle.kind === "directory") {
+      names.push(handle.name);
+    }
+  }
+  return names.sort((a, b) => a.localeCompare(b));
+};
+
 export const opfsExist = async (project: string, filename: string) => {
   if (project === "") {
     return false;

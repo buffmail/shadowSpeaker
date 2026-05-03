@@ -2,7 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, ReactNode } from "react";
 import { parseSync } from "subtitle";
-import { opfsDelete, opfsExist, opfsRead, opfsWrite } from "./util/opfs";
+import {
+  opfsDelete,
+  opfsExist,
+  opfsListProjects,
+  opfsRead,
+  opfsWrite,
+} from "./util/opfs";
 import { AudioSample, splitMp3Segments, makeSilentWav } from "./util/sample";
 import { nanoid } from "nanoid";
 import memoizeOne from "memoize-one";
@@ -349,6 +355,8 @@ export default function Home() {
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [favoriteIndices, setFavoriteIndices] = useState<Set<number>>(new Set());
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [projectPickerOpen, setProjectPickerOpen] = useState<boolean>(false);
+  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const segLengthRef = useRef<number>(0);
   const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
     undefined
@@ -488,13 +496,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !projectPickerOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key !== "Escape") return;
+      if (projectPickerOpen) setProjectPickerOpen(false);
+      else if (menuOpen) setMenuOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [menuOpen]);
+  }, [menuOpen, projectPickerOpen]);
 
   const playAudioSegment = async (
     index: number,
@@ -799,6 +809,26 @@ export default function Home() {
     handler();
   };
 
+  const openProjectPicker = async () => {
+    try {
+      const projects = await opfsListProjects();
+      setAvailableProjects(projects);
+      setProjectPickerOpen(true);
+    } catch (error) {
+      console.error("Failed to list projects:", error);
+      setStatus("Failed to load projects");
+    }
+  };
+
+  const selectProject = (name: string) => {
+    if (!name || name === project) {
+      setProjectPickerOpen(false);
+      return;
+    }
+    saveLastProject(name);
+    window.location.reload();
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center py-4 sm:py-8">
       <button
@@ -1045,6 +1075,12 @@ export default function Home() {
               Select SRT/VTT File
             </ActionButton>
             <ActionButton
+              tone="primary"
+              onClick={runFromMenu(openProjectPicker)}
+            >
+              Change Project
+            </ActionButton>
+            <ActionButton
               tone="slate"
               onClick={runFromMenu(toggleSplitScene)}
             >
@@ -1063,6 +1099,66 @@ export default function Home() {
               Build: {BUILD_TIME}
             </div>
           </aside>
+        </>
+      )}
+
+      {projectPickerOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setProjectPickerOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            role="dialog"
+            aria-label="Select project"
+          >
+            <div className="pointer-events-auto w-full max-w-sm bg-white dark:bg-gray-900 rounded-lg shadow-xl flex flex-col max-h-[80vh]">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                  Select Project
+                </h2>
+                <button
+                  onClick={() => setProjectPickerOpen(false)}
+                  aria-label="Close"
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-y-auto p-2">
+                {availableProjects.length === 0 ? (
+                  <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No projects yet. Use Select Audio File to create one.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col">
+                    {availableProjects.map((name) => {
+                      const isCurrent = name === project;
+                      return (
+                        <li key={name}>
+                          <button
+                            onClick={() => selectProject(name)}
+                            className={`w-full text-left px-4 py-3 rounded-md transition-colors truncate ${
+                              isCurrent
+                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                                : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                            }`}
+                          >
+                            {name}
+                            {isCurrent && (
+                              <span className="ml-2 text-xs">(current)</span>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
         </>
       )}
     </main>
