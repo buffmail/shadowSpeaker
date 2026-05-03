@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, ReactNode } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 import { parseSync } from "subtitle";
 import {
   opfsDelete,
@@ -365,14 +365,11 @@ export default function Home() {
   const [stuck, setStuck] = useState<boolean>(false);
   const project = loadLastProject() ?? "";
 
-  const stickyRefCallback = useCallback((el: HTMLDivElement | null) => {
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setStuck(entry.intersectionRatio < 1),
-      { threshold: [1] }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 0);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
@@ -866,8 +863,7 @@ export default function Home() {
 
       <div className="flex flex-col items-center gap-4 w-full">
         <div
-          ref={stickyRefCallback}
-          className={`sticky -top-px z-10 bg-white dark:bg-gray-900 w-full flex flex-col items-center transition-[padding,gap] ${
+          className={`sticky top-0 z-10 bg-white dark:bg-gray-900 w-full flex flex-col items-center transition-[padding,gap] ${
             stuck ? "py-1 gap-1" : "py-4 gap-4"
           }`}
         >
