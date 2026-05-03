@@ -66,9 +66,8 @@ const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
 
-const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME 
-  ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('en-US', { timeZone: 'UTC' })
-  : new Date().toLocaleString('en-US', { timeZone: 'UTC' });
+const BUILD_TIME_ISO =
+  process.env.NEXT_PUBLIC_BUILD_TIME ?? new Date().toISOString();
 
 const loadPlayIndex = () => {
   if (typeof window === "undefined") {
@@ -357,6 +356,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState<boolean>(false);
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
+  const [buildTime, setBuildTime] = useState<string>("");
   const segLengthRef = useRef<number>(0);
   const playAudioSegmentRef = useRef<typeof playAudioSegment | undefined>(
     undefined
@@ -493,6 +493,10 @@ export default function Home() {
       navigator?.mediaSession?.setActionHandler("pause", null);
       audioContext.close();
     };
+  }, []);
+
+  useEffect(() => {
+    setBuildTime(new Date(BUILD_TIME_ISO).toLocaleString("en-US"));
   }, []);
 
   useEffect(() => {
@@ -1096,7 +1100,7 @@ export default function Home() {
               Copy Scene
             </ActionButton>
             <div className="mt-auto text-xs text-gray-400 dark:text-gray-500">
-              Build: {BUILD_TIME}
+              Build: {buildTime}
             </div>
           </aside>
         </>
