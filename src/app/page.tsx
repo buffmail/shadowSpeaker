@@ -198,14 +198,6 @@ interface ProjectStats {
   startDate: string;
 }
 
-const getTodayISODate = (): string => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 const formatHHMMSS = (seconds: number): string => {
   const total = Math.max(0, Math.floor(seconds));
   const h = Math.floor(total / 3600);
@@ -215,7 +207,7 @@ const formatHHMMSS = (seconds: number): string => {
 };
 
 const elapsedDays = (startDate: string): number => {
-  const start = new Date(`${startDate}T00:00:00`);
+  const start = new Date(startDate);
   const now = new Date();
   const startMidnight = new Date(
     start.getFullYear(),
@@ -553,7 +545,7 @@ export default function Home() {
         loadedStats = {
           playCount: 0,
           totalDurationSec: 0,
-          startDate: getTodayISODate(),
+          startDate: new Date().toISOString(),
         };
         saveStats(project, loadedStats);
       }
