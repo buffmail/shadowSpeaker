@@ -28,20 +28,16 @@ const ActionButton = ({
   tone,
   onClick,
   className = "",
-  compact = false,
   children,
 }: {
   tone: Tone;
   onClick: () => void;
   className?: string;
-  compact?: boolean;
   children: ReactNode;
 }) => (
   <button
     onClick={onClick}
-    className={`cursor-pointer ${TONE_CLASSES[tone]} text-white ${
-      compact ? "px-3 py-1 text-sm" : "px-6 py-3"
-    } rounded-lg font-medium transition-colors ${className}`}
+    className={`cursor-pointer ${TONE_CLASSES[tone]} text-white px-6 py-3 rounded-lg font-medium transition-colors ${className}`}
   >
     {children}
   </button>
@@ -832,22 +828,25 @@ export default function Home() {
               stuck ? "gap-1" : "gap-4"
             }`}
           >
-            <p
-              className={`text-gray-600 dark:text-gray-400 text-center ${
-                stuck ? "text-sm sm:text-base" : "text-lg sm:text-2xl"
-              }`}
-            >
+            {isLoaded && (
+              <div className="hidden landscape:block">
+                <NavButton label="Prev" onClick={() => navigateBy(-1)} />
+              </div>
+            )}
+            <p className="text-gray-600 dark:text-gray-400 text-center text-lg sm:text-2xl">
               {status}
             </p>
             {isLoaded && (
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-center">
                 <ActionButton
                   tone={playInfo ? "danger" : "success"}
-                  compact={stuck}
                   onClick={togglePlay}
                 >
                   {playInfo ? "Stop" : "Play"}
                 </ActionButton>
+                <div className="hidden landscape:block">
+                  <NavButton label="Next" onClick={() => navigateBy(1)} />
+                </div>
               </div>
             )}
           </div>
