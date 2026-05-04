@@ -359,6 +359,7 @@ export default function Home() {
   );
   const dummyAudioRef = useRef<HTMLAudioElement | undefined>(undefined);
   const [stuck, setStuck] = useState<boolean>(false);
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
   const project = loadLastProject() ?? "";
 
   useEffect(() => {
@@ -606,9 +607,19 @@ export default function Home() {
       const progressPercent = Math.round(((index + 1) / segments.length) * 100);
       setStatus(`Current: ${progressPercent}% ${rangeStr}`);
 
-      document
-        .getElementById(getRowId(index))
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const row = document.getElementById(getRowId(index));
+      if (row) {
+        const headerHeight = stickyHeaderRef.current?.offsetHeight ?? 0;
+        const rowRect = row.getBoundingClientRect();
+        const rowCenterAbsolute =
+          rowRect.top + window.scrollY + rowRect.height / 2;
+        const visibleAreaCenter =
+          headerHeight + (window.innerHeight - headerHeight) / 2;
+        window.scrollTo({
+          top: rowCenterAbsolute - visibleAreaCenter,
+          behavior: "smooth",
+        });
+      }
     } catch (error) {
       console.error("Error playing audio:", error);
       setStatus("Error playing audio segment");
@@ -819,6 +830,7 @@ export default function Home() {
 
       <div className="flex flex-col items-center gap-4 w-full">
         <div
+          ref={stickyHeaderRef}
           className={`sticky top-0 z-10 bg-white dark:bg-gray-900 w-full flex flex-col items-center transition-[padding,gap] ${
             stuck ? "py-1 gap-1" : "py-4 gap-4"
           }`}
@@ -830,7 +842,9 @@ export default function Home() {
           >
             {isLoaded && (
               <div className="hidden landscape:block">
-                <NavButton label="Prev" onClick={() => navigateBy(-1)} />
+                <ActionButton tone="primary" onClick={() => navigateBy(-1)}>
+                  Prev
+                </ActionButton>
               </div>
             )}
             <p className="text-gray-600 dark:text-gray-400 text-center text-lg sm:text-2xl">
@@ -845,7 +859,9 @@ export default function Home() {
                   {playInfo ? "Stop" : "Play"}
                 </ActionButton>
                 <div className="hidden landscape:block">
-                  <NavButton label="Next" onClick={() => navigateBy(1)} />
+                  <ActionButton tone="primary" onClick={() => navigateBy(1)}>
+                    Next
+                  </ActionButton>
                 </div>
               </div>
             )}
