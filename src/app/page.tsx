@@ -1058,28 +1058,6 @@ export default function Home() {
                 {favoriteIndices.size}
               </span>
             </div>
-            {stats && (
-              <>
-                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="text-gray-400 dark:text-gray-500">Plays: </span>
-                  <span className="text-gray-700 dark:text-gray-200">
-                    {stats.playCount}
-                  </span>
-                </div>
-                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="text-gray-400 dark:text-gray-500">Time: </span>
-                  <span className="text-gray-700 dark:text-gray-200">
-                    {formatHHMMSS(stats.totalDurationSec)}
-                  </span>
-                </div>
-                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="text-gray-400 dark:text-gray-500">Days: </span>
-                  <span className="text-gray-700 dark:text-gray-200">
-                    {elapsedDays(stats.startDate)}
-                  </span>
-                </div>
-              </>
-            )}
             <ActionButton
               tone="primary"
               onClick={runFromMenu(() => handleFileSelect("audio"))}
@@ -1113,7 +1091,17 @@ export default function Home() {
             <ActionButton tone="slate" onClick={runFromMenu(copySceneText)}>
               Copy Scene
             </ActionButton>
-            <div className="mt-auto text-xs text-gray-400 dark:text-gray-500">
+            {stats && (
+              <div className="mt-auto text-xs text-gray-500 dark:text-gray-400 truncate">
+                {"Play "}
+                {stats.playCount}
+                {" · Time "}
+                {formatHHMMSS(stats.totalDurationSec)}
+                {" · Day "}
+                {elapsedDays(stats.startDate)}
+              </div>
+            )}
+            <div className={`${stats ? "" : "mt-auto "}text-xs text-gray-400 dark:text-gray-500`}>
               Build: {buildTime}
             </div>
           </aside>
