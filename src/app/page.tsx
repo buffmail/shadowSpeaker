@@ -43,21 +43,6 @@ const ActionButton = ({
   </button>
 );
 
-const NavButton = ({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-2 sm:px-4 rounded-2xl font-medium transition-colors text-3xl sm:text-6xl border-2 border-blue-500 text-white flex-1 sm:flex-none text-center"
-  >
-    {label}
-  </div>
-);
-
 const LS_INDEX = "lastPlayIndex";
 const LS_LAST_PROJECT = "lastProject";
 const SCENE_TAG = /^\[SCENE] /;
@@ -627,16 +612,13 @@ export default function Home() {
   };
   playAudioSegmentRef.current = playAudioSegment;
 
-  const navigateBy = (direction: 1 | -1) => {
+  const navigateNext = () => {
     const segment = segments[segIndex] ?? segments[0];
     if (!segment) return;
     const scenePlay = !!playCtx?.playInfo?.rangeInfo;
 
     if (scenePlay) {
-      const targetSceneId =
-        direction === -1
-          ? getPrevSceneId(segments, segment.sceneId)
-          : getNextSceneId(segments, segment.sceneId);
+      const targetSceneId = getNextSceneId(segments, segment.sceneId);
       const range = getSceneSegIndex(segments, targetSceneId);
       if (!range) return;
       playAudioSegment(range.beginIdx, false, {
@@ -646,8 +628,8 @@ export default function Home() {
       return;
     }
 
-    const targetIdx = segIndex + direction;
-    if (targetIdx >= 0 && targetIdx < segments.length) {
+    const targetIdx = segIndex + 1;
+    if (targetIdx < segments.length) {
       playAudioSegment(targetIdx, true);
     }
   };
@@ -840,13 +822,6 @@ export default function Home() {
               stuck ? "gap-1" : "gap-4"
             }`}
           >
-            {isLoaded && (
-              <div className="hidden landscape:block">
-                <ActionButton tone="primary" onClick={() => navigateBy(-1)}>
-                  Prev
-                </ActionButton>
-              </div>
-            )}
             <p className="text-gray-600 dark:text-gray-400 text-center text-lg sm:text-2xl">
               {status}
             </p>
@@ -858,20 +833,12 @@ export default function Home() {
                 >
                   {playInfo ? "Stop" : "Play"}
                 </ActionButton>
-                <div className="hidden landscape:block">
-                  <ActionButton tone="primary" onClick={() => navigateBy(1)}>
-                    Next
-                  </ActionButton>
-                </div>
+                <ActionButton tone="primary" onClick={navigateNext}>
+                  Next
+                </ActionButton>
               </div>
             )}
           </div>
-          {isLoaded && (
-            <div className="flex gap-4 sm:gap-8 w-full justify-center landscape:hidden">
-              <NavButton label="Prev" onClick={() => navigateBy(-1)} />
-              <NavButton label="Next" onClick={() => navigateBy(1)} />
-            </div>
-          )}
         </div>
         {segments.length > 0 && (
           <div className="mt-4 w-full overflow-x-auto">
