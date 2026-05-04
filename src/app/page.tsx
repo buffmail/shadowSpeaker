@@ -799,7 +799,7 @@ export default function Home() {
     <main className="min-h-screen flex items-center justify-center py-4 sm:py-8">
       <button
         onClick={() => setMenuOpen(true)}
-        aria-label="Open menu"
+        aria-label={`Open menu (${favoriteIndices.size} favorited)`}
         aria-expanded={menuOpen}
         className="fixed top-4 right-4 z-30 p-2 rounded-md bg-white/80 dark:bg-gray-800/80 backdrop-blur border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
       >
@@ -819,6 +819,14 @@ export default function Home() {
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
+        {favoriteIndices.size > 0 && (
+          <span
+            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-yellow-400 text-gray-900 text-xs font-medium flex items-center justify-center shadow"
+            aria-hidden="true"
+          >
+            {favoriteIndices.size}
+          </span>
+        )}
       </button>
 
       <div className="flex flex-col items-center gap-4 w-full">
