@@ -190,6 +190,87 @@ const OPFS_SRT_NAME = "transcript.srt";
 const OPFS_VTT_NAME = "transcript.vtt";
 const OPFS_SCENE_INDICES_NAME = "sceneIndices.json";
 const OPFS_FAVORITE_INDICES_NAME = "favoriteIndices.json";
+const OPFS_STATS_NAME = "stats.json";
+
+interface ProjectStats {
+  playCount: number;
+  totalDurationSec: number;
+  startDate: string;
+}
+
+const getTodayISODate = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatHHMMSS = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+};
+
+const elapsedDays = (startDate: string): number => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const now = new Date();
+  const startMidnight = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  ).getTime();
+  const todayMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).getTime();
+  return Math.max(
+    0,
+    Math.floor((todayMidnight - startMidnight) / 86400000)
+  );
+};
+
+const loadStats = async (
+  projectName: string
+): Promise<ProjectStats | null> => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const blob = await opfsRead(projectName, OPFS_STATS_NAME);
+    if (!blob) return null;
+    const decoder = new TextDecoder();
+    const str = decoder.decode(blob);
+    if (!str) return null;
+    const parsed = JSON.parse(str);
+    if (
+      parsed &&
+      typeof parsed.playCount === "number" &&
+      typeof parsed.totalDurationSec === "number" &&
+      typeof parsed.startDate === "string"
+    ) {
+      return parsed as ProjectStats;
+    }
+    throw new Error("invalid project stats shape");
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "NotFoundError") {
+      return null;
+    }
+    window.console.error("error during parsing project stats", error);
+    return null;
+  }
+};
+
+const saveStats = async (projectName: string, stats: ProjectStats) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const blob = new Blob([JSON.stringify(stats)], { type: "text/plain" });
+  await opfsWrite(projectName, OPFS_STATS_NAME, blob);
+};
 
 const findSubtitleFile = async (
   project: string
@@ -334,6 +415,8 @@ export default function Home() {
   const [segIndex, setSegIndex] = useState<number>(0);
   const [scenes, setScenes] = useState<number>(0);
   const [favoriteIndices, setFavoriteIndices] = useState<Set<number>>(new Set());
+  const [stats, setStats] = useState<ProjectStats | null>(null);
+  const statsRef = useRef<ProjectStats | null>(null);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState<boolean>(false);
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
@@ -464,6 +547,19 @@ export default function Home() {
       setScenes(getAllSceneIds(segments).length);
       const favs = await loadFavoriteIndices(project);
       setFavoriteIndices(new Set(favs));
+
+      let loadedStats = await loadStats(project);
+      if (!loadedStats) {
+        loadedStats = {
+          playCount: 0,
+          totalDurationSec: 0,
+          startDate: getTodayISODate(),
+        };
+        saveStats(project, loadedStats);
+      }
+      statsRef.current = loadedStats;
+      setStats(loadedStats);
+
       setStatus(`Current: ${lastIdx + 1} / ${segments.length}`);
     })();
 
@@ -518,6 +614,17 @@ export default function Home() {
 
       setSegIndex(index);
       savePlayIndex(index);
+
+      if (statsRef.current) {
+        const next: ProjectStats = {
+          ...statsRef.current,
+          playCount: statsRef.current.playCount + 1,
+          totalDurationSec: statsRef.current.totalDurationSec + durationSec,
+        };
+        statsRef.current = next;
+        setStats(next);
+        saveStats(project, next);
+      }
 
       const abSrcNode = audioContext.createBufferSource();
 
@@ -959,6 +1066,28 @@ export default function Home() {
                 {favoriteIndices.size}
               </span>
             </div>
+            {stats && (
+              <>
+                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-gray-400 dark:text-gray-500">Plays: </span>
+                  <span className="text-gray-700 dark:text-gray-200">
+                    {stats.playCount}
+                  </span>
+                </div>
+                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-gray-400 dark:text-gray-500">Time: </span>
+                  <span className="text-gray-700 dark:text-gray-200">
+                    {formatHHMMSS(stats.totalDurationSec)}
+                  </span>
+                </div>
+                <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-gray-400 dark:text-gray-500">Days: </span>
+                  <span className="text-gray-700 dark:text-gray-200">
+                    {elapsedDays(stats.startDate)}
+                  </span>
+                </div>
+              </>
+            )}
             <ActionButton
               tone="primary"
               onClick={runFromMenu(() => handleFileSelect("audio"))}
