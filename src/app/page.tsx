@@ -725,10 +725,7 @@ export default function Home() {
       return;
     }
 
-    const targetIdx = segIndex + 1;
-    if (targetIdx < segments.length) {
-      playAudioSegment(targetIdx, true);
-    }
+    playAudioSegment(segIndex, false);
   };
 
   const togglePlay = async () => {
@@ -930,9 +927,11 @@ export default function Home() {
                 >
                   {playInfo ? "Stop" : "Play"}
                 </ActionButton>
-                <ActionButton tone="primary" onClick={navigateNext}>
-                  Next
-                </ActionButton>
+                {playInfo && (
+                  <ActionButton tone="primary" onClick={navigateNext}>
+                    Next
+                  </ActionButton>
+                )}
               </div>
             )}
           </div>
