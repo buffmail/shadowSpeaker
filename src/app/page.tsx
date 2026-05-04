@@ -290,7 +290,7 @@ interface PlayContext {
   playInfo?: {
     rangeInfo?: RangeInfo;
     abSrcNode: AudioBufferSourceNode;
-    stopListener?: () => void;
+    stopListener: () => void;
   };
 }
 
@@ -300,9 +300,7 @@ const stopPlayback = (playContext: PlayContext) => {
     return;
   }
 
-  if (playInfo.stopListener) {
-    playInfo.abSrcNode.removeEventListener("ended", playInfo.stopListener);
-  }
+  playInfo.abSrcNode.removeEventListener("ended", playInfo.stopListener);
   playInfo.abSrcNode.stop();
   playContext.playInfo = undefined;
 
@@ -628,10 +626,9 @@ export default function Home() {
 
       abSrcNode.buffer = segmentBuffer;
       abSrcNode.connect(audioContext.destination);
-      abSrcNode.loop = singleEntryLoop;
 
-      let stopListener: undefined | (() => void) = undefined;
       let rangeInfo: RangeInfo | undefined = undefined;
+      let nextIndex = index;
 
       if (singleEntryLoop === false) {
         const sceneBeginIdx = segments.findIndex(
@@ -651,15 +648,16 @@ export default function Home() {
             beginIdx: newBeginIdx,
             endIdx: newEndIdx,
           };
-        let nextIndex = index + 1;
+        nextIndex = index + 1;
         if (nextIndex >= rangeInfo.endIdx) {
           nextIndex = rangeInfo.beginIdx;
         }
-        stopListener = () => {
-          playAudioSegment(nextIndex, singleEntryLoop);
-        };
-        abSrcNode.addEventListener("ended", stopListener);
       }
+
+      const stopListener = () => {
+        playAudioSegment(nextIndex, singleEntryLoop);
+      };
+      abSrcNode.addEventListener("ended", stopListener);
 
       playContext.playInfo = { abSrcNode, stopListener, rangeInfo };
 
